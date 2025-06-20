@@ -16,6 +16,14 @@ export interface Restaurant {
   updated_at: string;
 }
 
+export interface CreateRestaurantData {
+  name: string;
+  description?: string;
+  address?: string;
+  phone?: string;
+  logo_url?: string;
+}
+
 export const useRestaurants = () => {
   return useQuery({
     queryKey: ['restaurants'],
@@ -36,10 +44,16 @@ export const useCreateRestaurant = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (restaurantData: Partial<Restaurant>) => {
+    mutationFn: async (restaurantData: CreateRestaurantData) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('restaurants')
-        .insert(restaurantData)
+        .insert({
+          ...restaurantData,
+          owner_id: user.id
+        })
         .select()
         .single();
 

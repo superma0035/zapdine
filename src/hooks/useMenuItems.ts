@@ -17,14 +17,15 @@ export interface MenuItem {
   updated_at: string;
 }
 
-export interface MenuCategory {
-  id: string;
+export interface CreateMenuItemData {
   restaurant_id: string;
   name: string;
-  description: string | null;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
+  description?: string;
+  price: number;
+  category_id?: string;
+  image_url?: string;
+  is_available?: boolean;
+  sort_order?: number;
 }
 
 export const useMenuItems = (restaurantId: string | undefined) => {
@@ -37,6 +38,7 @@ export const useMenuItems = (restaurantId: string | undefined) => {
         .from('menu_items')
         .select('*')
         .eq('restaurant_id', restaurantId)
+        .eq('is_available', true)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
@@ -46,34 +48,14 @@ export const useMenuItems = (restaurantId: string | undefined) => {
   });
 };
 
-export const useMenuCategories = (restaurantId: string | undefined) => {
-  return useQuery({
-    queryKey: ['menu-categories', restaurantId],
-    queryFn: async () => {
-      if (!restaurantId) return [];
-      
-      const { data, error } = await supabase
-        .from('menu_categories')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      return data as MenuCategory[];
-    },
-    enabled: !!restaurantId
-  });
-};
-
 export const useCreateMenuItem = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (itemData: Partial<MenuItem>) => {
+    mutationFn: async (menuItemData: CreateMenuItemData) => {
       const { data, error } = await supabase
         .from('menu_items')
-        .insert(itemData)
+        .insert(menuItemData)
         .select()
         .single();
 

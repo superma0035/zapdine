@@ -13,6 +13,12 @@ export interface Table {
   created_at: string;
 }
 
+export interface CreateTableData {
+  restaurant_id: string;
+  table_number: string;
+  capacity?: number;
+}
+
 export const useTables = (restaurantId: string | undefined) => {
   return useQuery({
     queryKey: ['tables', restaurantId],
@@ -37,14 +43,16 @@ export const useCreateTable = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (tableData: Partial<Table>) => {
+    mutationFn: async (tableData: CreateTableData) => {
       // Generate QR code data (simplified - in real app you'd use a QR library)
       const qrData = `${window.location.origin}/order/${tableData.restaurant_id}/${tableData.table_number}`;
       
       const { data, error } = await supabase
         .from('tables')
         .insert({
-          ...tableData,
+          restaurant_id: tableData.restaurant_id,
+          table_number: tableData.table_number,
+          capacity: tableData.capacity || 4,
           qr_code: qrData
         })
         .select()
