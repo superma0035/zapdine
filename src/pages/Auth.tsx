@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,10 +20,11 @@ const Auth = () => {
   const navigate = useNavigate();
 
   // Redirect if already logged in
-  if (user) {
-    navigate('/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +43,25 @@ const Auth = () => {
           return;
         }
         result = await signUp(email, password, fullName);
+        if (!result.error) {
+          toast({
+            title: "Success!",
+            description: "Account created successfully! Please check your email to verify your account.",
+          });
+          setIsSignUp(false);
+          setEmail('');
+          setPassword('');
+          setFullName('');
+        }
       } else {
         result = await signIn(email, password);
+        if (!result.error) {
+          toast({
+            title: "Welcome back!",
+            description: "You have been signed in successfully.",
+          });
+          navigate('/dashboard');
+        }
       }
 
       if (result.error) {
@@ -52,19 +70,6 @@ const Auth = () => {
           description: result.error.message,
           variant: "destructive"
         });
-      } else {
-        if (isSignUp) {
-          toast({
-            title: "Success!",
-            description: "Account created successfully! Please check your email to verify your account.",
-          });
-        } else {
-          toast({
-            title: "Welcome back!",
-            description: "You have been signed in successfully.",
-          });
-          navigate('/dashboard');
-        }
       }
     } catch (error) {
       toast({
@@ -78,13 +83,13 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-orange-50 to-brand-100 flex items-center justify-center px-4">
       <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="text-center pb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-r from-brand-500 to-brand-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent mb-2">
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-brand-600 to-brand-700 bg-clip-text text-transparent mb-2">
             {isSignUp ? 'Join ZapDine' : 'Welcome Back'}
           </CardTitle>
           <p className="text-gray-600">
@@ -105,7 +110,7 @@ const Auth = () => {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="h-12 border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                  className="h-12 border-gray-200 focus:border-brand-500 focus:ring-brand-500"
                   placeholder="Enter your full name"
                   required={isSignUp}
                 />
@@ -119,7 +124,7 @@ const Auth = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                className="h-12 border-gray-200 focus:border-brand-500 focus:ring-brand-500"
                 placeholder="Enter your email"
                 required
               />
@@ -133,7 +138,7 @@ const Auth = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 border-gray-200 focus:border-orange-500 focus:ring-orange-500 pr-10"
+                  className="h-12 border-gray-200 focus:border-brand-500 focus:ring-brand-500 pr-10"
                   placeholder="Enter your password"
                   required
                 />
@@ -156,7 +161,7 @@ const Auth = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white h-12 text-lg font-semibold shadow-lg"
+              className="w-full bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white h-12 text-lg font-semibold shadow-lg"
             >
               {loading ? (
                 <div className="flex items-center space-x-2">
@@ -173,7 +178,7 @@ const Auth = () => {
             <Button
               variant="ghost"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+              className="text-brand-600 hover:text-brand-700 hover:bg-brand-50"
             >
               {isSignUp 
                 ? 'Already have an account? Sign in' 
@@ -189,6 +194,13 @@ const Auth = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
+        <p className="text-gray-600 text-sm">
+          Powered by <span className="font-semibold text-brand-600">SPS Labs</span>
+        </p>
+      </div>
     </div>
   );
 };

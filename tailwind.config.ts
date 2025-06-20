@@ -26,8 +26,8 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					DEFAULT: '#FF5733',
+					foreground: '#FFFFFF'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -63,10 +63,18 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				zapdine: {
-					orange: '#CC7A47',
-					'orange-light': '#E69B6D',
-					'orange-dark': '#B86A3E',
+				brand: {
+					DEFAULT: '#FF5733',
+					50: '#FFF4F2',
+					100: '#FFE9E5',
+					200: '#FFD3CC',
+					300: '#FFB3A6',
+					400: '#FF8A73',
+					500: '#FF5733',
+					600: '#E63E1F',
+					700: '#C2300F',
+					800: '#9F2808',
+					900: '#7A1F06'
 				}
 			},
 			borderRadius: {
