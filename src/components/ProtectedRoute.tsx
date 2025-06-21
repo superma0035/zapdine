@@ -19,12 +19,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <div className="w-16 h-16 bg-brand-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
-          <p className="text-gray-600">Loading...</p>
+          <h3 className="text-lg font-semibold text-brand-600 mb-2">Loading ZapDine...</h3>
+          <p className="text-gray-600">Setting up your restaurant dashboard</p>
         </div>
       </div>
     );
