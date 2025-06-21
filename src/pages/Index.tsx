@@ -6,37 +6,40 @@ const Index = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zapdine-orange to-zapdine-orange-light">
+    <div className="min-h-screen bg-gradient-to-br from-[#FF5733] to-[#FF7F50]">
       {/* Hero Section */}
       <div className="relative min-h-screen flex items-center justify-center px-4">
         <div className="text-center text-white max-w-4xl mx-auto">
           {/* Logo */}
           <div className="mb-8">
-            <div className="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
               <span className="text-4xl font-bold text-white">Z</span>
             </div>
-            <h1 className="text-6xl md:text-7xl font-bold mb-4">ZapDine</h1>
+            <h1 className="text-6xl md:text-7xl font-bold mb-4 drop-shadow-lg">ZapDine</h1>
           </div>
 
           {/* Tagline */}
-          <p className="text-xl md:text-2xl mb-12 text-white/90 max-w-3xl mx-auto">
+          <p className="text-xl md:text-2xl mb-12 text-white/90 max-w-3xl mx-auto leading-relaxed">
             Streamline your restaurant's dining experience with QR-powered ordering
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button
-              onClick={() => navigate('/login')}
-              className="bg-white text-zapdine-orange hover:bg-gray-100 text-lg px-8 py-6 rounded-xl font-semibold min-w-[200px]"
+              onClick={() => navigate('/auth')}
+              className="bg-white text-[#FF5733] hover:bg-gray-100 text-lg px-8 py-6 rounded-xl font-semibold min-w-[200px] shadow-lg transition-all duration-200 hover:scale-105"
             >
-              Restaurant Login
+              Get Started
             </Button>
             <Button
               onClick={() => {
-                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+                const howItWorksSection = document.getElementById('how-it-works');
+                if (howItWorksSection) {
+                  howItWorksSection.scrollIntoView({ behavior: 'smooth' });
+                }
               }}
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-zapdine-orange text-lg px-8 py-6 rounded-xl font-semibold min-w-[200px] bg-transparent"
+              className="border-2 border-white text-white hover:bg-white hover:text-[#FF5733] text-lg px-8 py-6 rounded-xl font-semibold min-w-[200px] bg-transparent backdrop-blur-sm transition-all duration-200 hover:scale-105"
             >
               How It Works
             </Button>
@@ -64,32 +67,57 @@ const Index = () => {
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-lg">
-              <div className="w-16 h-16 bg-zapdine-orange rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200">
+              <div className="w-16 h-16 bg-[#FF5733] rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl text-white font-bold">1</span>
               </div>
               <h3 className="text-xl font-semibold mb-4 text-gray-800">Setup Your Restaurant</h3>
               <p className="text-gray-600">Create your profile, upload your menu, and generate QR codes for your tables.</p>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-lg">
-              <div className="w-16 h-16 bg-zapdine-orange rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200">
+              <div className="w-16 h-16 bg-[#FF5733] rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl text-white font-bold">2</span>
               </div>
               <h3 className="text-xl font-semibold mb-4 text-gray-800">Customers Scan & Order</h3>
               <p className="text-gray-600">Diners scan the QR code, browse your menu, and place orders directly from their phones.</p>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-lg">
-              <div className="w-16 h-16 bg-zapdine-orange rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200">
+              <div className="w-16 h-16 bg-[#FF5733] rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl text-white font-bold">3</span>
               </div>
               <h3 className="text-xl font-semibold mb-4 text-gray-800">Manage & Fulfill</h3>
               <p className="text-gray-600">Receive orders in real-time, track preparation, and deliver exceptional dining experiences.</p>
             </div>
           </div>
+
+          <div className="mt-16">
+            <Button
+              onClick={() => navigate('/auth')}
+              className="bg-[#FF5733] text-white hover:bg-[#E6492E] text-lg px-8 py-6 rounded-xl font-semibold shadow-lg transition-all duration-200 hover:scale-105"
+            >
+              Start Your Restaurant Journey
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-800 text-white py-8 px-4">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="w-8 h-8 bg-[#FF5733] rounded-full flex items-center justify-center">
+              <span className="text-lg font-bold text-white">Z</span>
+            </div>
+            <h3 className="text-xl font-bold">ZapDine</h3>
+          </div>
+          <p className="text-gray-400 mb-4">Revolutionizing restaurant dining experiences</p>
+          <p className="text-gray-500">
+            Powered by <span className="font-semibold text-[#FF5733]">SPS Labs</span>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
