@@ -62,6 +62,7 @@ export const useCreateRestaurant = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       toast({
         title: "Success!",
         description: "Restaurant created successfully!",

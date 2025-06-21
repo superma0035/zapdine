@@ -78,3 +78,32 @@ export const useCreateMenuItem = () => {
     }
   });
 };
+
+export const useDeleteMenuItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (itemId: string) => {
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ is_available: false })
+        .eq('id', itemId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-items'] });
+      toast({
+        title: "Success!",
+        description: "Menu item deleted successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete menu item",
+        variant: "destructive"
+      });
+    }
+  });
+};

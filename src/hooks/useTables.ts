@@ -77,3 +77,32 @@ export const useCreateTable = () => {
     }
   });
 };
+
+export const useDeleteTable = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (tableId: string) => {
+      const { error } = await supabase
+        .from('tables')
+        .update({ is_active: false })
+        .eq('id', tableId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      toast({
+        title: "Success!",
+        description: "Table deleted successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete table",
+        variant: "destructive"
+      });
+    }
+  });
+};

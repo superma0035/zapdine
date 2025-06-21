@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Search, TrendingUp } from 'lucide-react';
 import { useMenuItems } from '@/hooks/useMenuItems';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -28,6 +28,8 @@ const CustomerMenu = () => {
   const [orderNotes, setOrderNotes] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [restaurant, setRestaurant] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
     if (restaurantId) {
@@ -49,6 +51,19 @@ const CustomerMenu = () => {
       console.error('Error fetching restaurant:', error);
     }
   };
+
+  // Filter and search menu items
+  const filteredItems = menuItems?.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  }) || [];
+
+  // Get categories from menu items
+  const categories = ['all', ...new Set(menuItems?.map(item => item.category_id || 'uncategorized').filter(Boolean))];
+
+  // Popular items (mock data - in real app, this would come from order history)
+  const popularItems = menuItems?.slice(0, 3) || [];
 
   const addToCart = (item: any) => {
     setCart(prev => {
@@ -155,7 +170,7 @@ const CustomerMenu = () => {
       setCustomerName('');
       setOrderNotes('');
       
-      // Generate bill (you could redirect to a bill page here)
+      // Generate bill
       generateBill(order, cart);
       
     } catch (error) {
@@ -218,8 +233,8 @@ const CustomerMenu = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-        <div className="max-w-4xl mx-auto">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-brand-500 rounded-full flex items-center justify-center">
@@ -238,7 +253,51 @@ const CustomerMenu = () => {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search menu items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 focus:border-brand-500 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+
+        {/* Popular Items */}
+        {!searchTerm && popularItems.length > 0 && (
+          <Card className="border-brand-100 mb-8">
+            <CardHeader>
+              <CardTitle className="text-brand-600 flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2" />
+                Today's Popular Items
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {popularItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-brand-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-brand-600 font-semibold">${item.price}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => addToCart(item)}
+                      className="bg-brand-500 hover:bg-brand-600"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Customer Info */}
         <Card className="border-brand-100 mb-6">
           <CardHeader>
@@ -269,8 +328,8 @@ const CustomerMenu = () => {
         </Card>
 
         {/* Menu Items */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {menuItems?.map((item) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {filteredItems?.map((item) => (
             <Card key={item.id} className="border-brand-100">
               <CardContent className="p-6">
                 {item.image_url && (
@@ -360,7 +419,7 @@ const CustomerMenu = () => {
 
       {/* Footer */}
       <footer className="mt-16 bg-white border-t border-gray-200 py-6">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+        <div className="max-w-6xl mx-auto px-6 text-center">
           <p className="text-gray-600">
             Powered by <span className="font-semibold text-brand-600">SPS Labs</span>
           </p>

@@ -1,25 +1,28 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle } from 'lucide-react';
 
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signIn, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
+  const welcomeMessage = searchParams.get('message') === 'welcome';
+
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
@@ -31,50 +34,62 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      let result;
-      if (isSignUp) {
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: "Login Failed",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully logged in.",
+          });
+          navigate('/dashboard');
+        }
+      } else {
         if (!fullName.trim()) {
           toast({
             title: "Error",
             description: "Please enter your full name",
             variant: "destructive"
           });
-          setLoading(false);
           return;
         }
-        result = await signUp(email, password, fullName);
-        if (!result.error) {
+        if (!username.trim()) {
           toast({
-            title: "Success!",
-            description: "Account created successfully! Please check your email to verify your account.",
+            title: "Error",
+            description: "Please enter a username",
+            variant: "destructive"
           });
-          setIsSignUp(false);
+          return;
+        }
+
+        const { error } = await signUp(email, password, fullName.trim(), username.trim());
+        if (error) {
+          toast({
+            title: "Signup Failed",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Account Created!",
+            description: "Please check your email to confirm your account, then return here to login.",
+          });
+          setIsLogin(true);
           setEmail('');
           setPassword('');
           setFullName('');
-        }
-      } else {
-        result = await signIn(email, password);
-        if (!result.error) {
-          toast({
-            title: "Welcome back!",
-            description: "You have been signed in successfully.",
-          });
-          navigate('/dashboard');
+          setUsername('');
         }
       }
-
-      if (result.error) {
-        toast({
-          title: "Authentication Error",
-          description: result.error.message,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
     } finally {
@@ -83,123 +98,120 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-orange-50 to-brand-100 flex items-center justify-center px-4">
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader className="text-center pb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-brand-500 to-brand-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-brand-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-brand-600 to-brand-700 bg-clip-text text-transparent mb-2">
-            {isSignUp ? 'Join ZapDine' : 'Welcome Back'}
-          </CardTitle>
-          <p className="text-gray-600">
-            {isSignUp 
-              ? 'Create your account to start managing your restaurant' 
-              : 'Sign in to manage your restaurant and streamline your dining experience'
-            }
-          </p>
-        </CardHeader>
+          <h1 className="text-3xl font-bold text-brand-600">ZapDine</h1>
+          <p className="text-gray-600 mt-2">Restaurant Management Made Simple</p>
+        </div>
 
-        <CardContent className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
+        {/* Welcome Message */}
+        {welcomeMessage && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Welcome to ZapDine! Your account has been confirmed. Please login below to get started.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Card className="border-brand-100">
+          <CardHeader>
+            <CardTitle className="text-center text-brand-600">
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      required={!isLogin}
+                      className="focus:border-brand-500 focus:ring-brand-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Choose a username"
+                      required={!isLogin}
+                      className="focus:border-brand-500 focus:ring-brand-500"
+                    />
+                  </div>
+                </>
+              )}
+              
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-gray-700 font-medium">Full Name</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="h-12 border-gray-200 focus:border-brand-500 focus:ring-brand-500"
-                  placeholder="Enter your full name"
-                  required={isSignUp}
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  className="focus:border-brand-500 focus:ring-brand-500"
                 />
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-12 border-gray-200 focus:border-brand-500 focus:ring-brand-500"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-              <div className="relative">
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 border-gray-200 focus:border-brand-500 focus:ring-brand-500 pr-10"
                   placeholder="Enter your password"
                   required
+                  className="focus:border-brand-500 focus:ring-brand-500"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-12 px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </Button>
               </div>
+              
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-brand-500 hover:bg-brand-600"
+              >
+                {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+              </Button>
+            </form>
+            
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-brand-600 hover:text-brand-700 text-sm font-medium"
+              >
+                {isLogin 
+                  ? "Don't have an account? Sign up" 
+                  : "Already have an account? Sign in"
+                }
+              </button>
             </div>
+          </CardContent>
+        </Card>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white h-12 text-lg font-semibold shadow-lg"
-            >
-              {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>{isSignUp ? 'Creating Account...' : 'Signing In...'}</span>
-                </div>
-              ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
-              )}
-            </Button>
-          </form>
-
-          <div className="text-center">
-            <Button
-              variant="ghost"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-brand-600 hover:text-brand-700 hover:bg-brand-50"
-            >
-              {isSignUp 
-                ? 'Already have an account? Sign in' 
-                : "Don't have an account? Sign up"
-              }
-            </Button>
-          </div>
-
-          {!isSignUp && (
-            <p className="text-center text-sm text-gray-500 mt-6">
-              Demo: Use any email/password to test the system
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-        <p className="text-gray-600 text-sm">
-          Powered by <span className="font-semibold text-brand-600">SPS Labs</span>
-        </p>
+        {/* Footer */}
+        <footer className="mt-8 text-center">
+          <p className="text-gray-600">
+            Powered by <span className="font-semibold text-brand-600">SPS Labs</span>
+          </p>
+        </footer>
       </div>
     </div>
   );
