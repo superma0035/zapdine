@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +10,8 @@ import {
   XCircle, 
   ChefHat, 
   Search,
-  MessageSquare
+  MessageSquare,
+  ShoppingBag
 } from 'lucide-react';
 import { useRestaurants } from '@/hooks/useRestaurants';
 import { useTodaysOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
