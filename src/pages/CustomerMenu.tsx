@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -17,6 +18,12 @@ interface MenuItem {
   image_url: string | null;
 }
 
+interface Restaurant {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 const CustomerMenu = () => {
   const { restaurantId, tableNumber } = useParams<{ restaurantId: string; tableNumber: string }>();
   const navigate = useNavigate();
@@ -24,11 +31,11 @@ const CustomerMenu = () => {
   const [cart, setCart] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCart, setShowCart] = useState(false);
-  const [restaurant, setRestaurant] = useState<any>(null);
-  const [sessionTimeLeft, setSessionTimeLeft] = useState(3600); // 1 hour in seconds
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(7200); // 2 hours in seconds
   const [showBillDialog, setShowBillDialog] = useState(false);
 
-  const fetchMenuItems = async () => {
+  const fetchMenuItems = async (): Promise<MenuItem[]> => {
     if (!restaurantId) return [];
     const { data, error } = await supabase
       .from('menu_items')
@@ -43,12 +50,13 @@ const CustomerMenu = () => {
     return data as MenuItem[];
   };
 
-  const { data: fetchedMenuItems, isLoading: menuItemsLoading } = useQuery(
-    ['menuItems', restaurantId],
-    fetchMenuItems
-  );
+  const { data: fetchedMenuItems, isLoading: menuItemsLoading } = useQuery({
+    queryKey: ['menuItems', restaurantId],
+    queryFn: fetchMenuItems,
+    enabled: !!restaurantId,
+  });
 
-  const fetchRestaurant = async () => {
+  const fetchRestaurant = async (): Promise<Restaurant | null> => {
     if (!restaurantId) return null;
     const { data, error } = await supabase
       .from('restaurants')
@@ -60,13 +68,14 @@ const CustomerMenu = () => {
       console.error('Error fetching restaurant:', error);
       return null;
     }
-    return data;
+    return data as Restaurant;
   };
 
-  const { data: fetchedRestaurant } = useQuery(
-    ['restaurant', restaurantId],
-    fetchRestaurant
-  );
+  const { data: fetchedRestaurant } = useQuery({
+    queryKey: ['restaurant', restaurantId],
+    queryFn: fetchRestaurant,
+    enabled: !!restaurantId,
+  });
 
   useEffect(() => {
     if (fetchedMenuItems) {
@@ -127,15 +136,15 @@ const CustomerMenu = () => {
 
   const popularItems = menuItems.slice(0, 3);
 
-  const placeOrderMutation = useMutation(
-    async () => {
+  const placeOrderMutation = useMutation({
+    mutationFn: async () => {
       // Simulate order placement
       await new Promise((resolve) => setTimeout(resolve, 1000));
       alert('Order placed successfully!');
       setCart([]);
       setShowCart(false);
-    }
-  );
+    },
+  });
 
   const placeOrder = () => {
     placeOrderMutation.mutate();
