@@ -1,14 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, ShoppingCart, Plus, Minus } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import MenuHeader from '@/components/customer/MenuHeader';
+import MenuSearch from '@/components/customer/MenuSearch';
+import MenuGrid from '@/components/customer/MenuGrid';
+import CartModal from '@/components/customer/CartModal';
 
 interface MenuItem {
   id: string;
@@ -24,19 +29,30 @@ interface Restaurant {
   description: string | null;
 }
 
+interface CartItem extends MenuItem {
+  quantity: number;
+}
+
 const CustomerMenu = () => {
   const { restaurantId, tableNumber } = useParams<{ restaurantId: string; tableNumber: string }>();
   const navigate = useNavigate();
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<any[]>([]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCart, setShowCart] = useState(false);
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [sessionTimeLeft, setSessionTimeLeft] = useState(7200); // 2 hours in seconds
   const [showBillDialog, setShowBillDialog] = useState(false);
 
+  // Validate required params
+  if (!restaurantId || !tableNumber) {
+    navigate('/');
+    return null;
+  }
+
   const fetchMenuItems = async (): Promise<MenuItem[]> => {
-    if (!restaurantId) return [];
+    console.log('Fetching menu items for restaurant:', restaurantId);
     const { data, error } = await supabase
       .from('menu_items')
       .select('*')
@@ -45,19 +61,14 @@ const CustomerMenu = () => {
 
     if (error) {
       console.error('Error fetching menu items:', error);
-      return [];
+      throw new Error(`Failed to fetch menu items: ${error.message}`);
     }
+    console.log('Menu items fetched:', data?.length || 0);
     return data as MenuItem[];
   };
 
-  const { data: fetchedMenuItems, isLoading: menuItemsLoading } = useQuery({
-    queryKey: ['menuItems', restaurantId],
-    queryFn: fetchMenuItems,
-    enabled: !!restaurantId,
-  });
-
-  const fetchRestaurant = async (): Promise<Restaurant | null> => {
-    if (!restaurantId) return null;
+  const fetchRestaurant = async (): Promise<Restaurant> => {
+    console.log('Fetching restaurant:', restaurantId);
     const { data, error } = await supabase
       .from('restaurants')
       .select('*')
@@ -66,68 +77,81 @@ const CustomerMenu = () => {
 
     if (error) {
       console.error('Error fetching restaurant:', error);
-      return null;
+      throw new Error(`Failed to fetch restaurant: ${error.message}`);
     }
+    console.log('Restaurant fetched:', data?.name);
     return data as Restaurant;
   };
 
-  const { data: fetchedRestaurant } = useQuery({
+  const { data: menuItems = [], isLoading: menuItemsLoading, error: menuItemsError } = useQuery({
+    queryKey: ['menuItems', restaurantId],
+    queryFn: fetchMenuItems,
+    enabled: !!restaurantId,
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const { data: restaurant, isLoading: restaurantLoading, error: restaurantError } = useQuery({
     queryKey: ['restaurant', restaurantId],
     queryFn: fetchRestaurant,
     enabled: !!restaurantId,
+    retry: 2,
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  useEffect(() => {
-    if (fetchedMenuItems) {
-      setMenuItems(fetchedMenuItems);
-    }
-  }, [fetchedMenuItems]);
-
-  useEffect(() => {
-    if (fetchedRestaurant) {
-      setRestaurant(fetchedRestaurant);
-    }
-  }, [fetchedRestaurant]);
-
+  // Session timer
   useEffect(() => {
     const timer = setInterval(() => {
-      setSessionTimeLeft((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
+      setSessionTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Redirecting to home page.",
+            variant: "destructive",
+          });
+          navigate('/');
+          return 0;
+        }
+        return prevTime - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (sessionTimeLeft === 0) {
-      alert('Session has expired. You will be redirected.');
-      navigate('/');
-    }
-  }, [sessionTimeLeft, navigate]);
+  }, [navigate, toast]);
 
   const addToCart = (item: MenuItem) => {
-    const existingItem = cart.find((cartItem) => cartItem.id === item.id);
-    if (existingItem) {
-      setCart(
-        cart.map((cartItem) =>
-          cartItem.id === item.id ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem
-        )
-      );
-    } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
-    }
+    console.log('Adding to cart:', item.name);
+    setCart(prevCart => {
+      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
+      if (existingItem) {
+        return prevCart.map((cartItem) =>
+          cartItem.id === item.id 
+            ? { ...cartItem, quantity: cartItem.quantity + 1 } 
+            : cartItem
+        );
+      } else {
+        return [...prevCart, { ...item, quantity: 1 }];
+      }
+    });
+    
+    toast({
+      title: "Added to Cart",
+      description: `${item.name} has been added to your cart.`,
+    });
   };
 
   const updateQuantity = (itemId: string, quantity: number) => {
     if (quantity === 0) {
       setCart(cart.filter((item) => item.id !== itemId));
     } else {
-      setCart(
-        cart.map((item) => (item.id === itemId ? { ...item, quantity } : item))
-      );
+      setCart(cart.map((item) => 
+        item.id === itemId ? { ...item, quantity } : item
+      ));
     }
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const filteredItems = menuItems.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -138,259 +162,144 @@ const CustomerMenu = () => {
 
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
-      // Simulate order placement
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      alert('Order placed successfully!');
+      console.log('Placing order...');
+      
+      const orderData = {
+        restaurant_id: restaurantId,
+        table_number: tableNumber,
+        total_amount: cartTotal,
+        status: 'pending',
+        notes: `Order from Table ${tableNumber}`,
+      };
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Add order items
+      const orderItems = cart.map(item => ({
+        order_id: order.id,
+        menu_item_id: item.id,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      return order;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Order Placed Successfully!",
+        description: "Your order has been sent to the kitchen.",
+      });
       setCart([]);
       setShowCart(false);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+    onError: (error) => {
+      console.error('Error placing order:', error);
+      toast({
+        title: "Order Failed",
+        description: "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
-  const placeOrder = () => {
-    placeOrderMutation.mutate();
-  };
-
   const generateBill = () => {
-    alert('Bill generated! Total amount: ₹' + cartTotal.toFixed(2));
+    toast({
+      title: "Bill Generated",
+      description: `Total amount: ₹${cartTotal.toFixed(2)}`,
+    });
     setShowBillDialog(false);
     navigate('/');
   };
 
+  // Loading state
+  if (restaurantLoading || menuItemsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF5733] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading menu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (restaurantError || menuItemsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1] flex items-center justify-center">
+        <Card className="w-full max-w-md mx-4">
+          <CardContent className="text-center py-12">
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Connection Error</h3>
+            <p className="text-gray-600 mb-4">
+              Unable to load the menu. Please check your connection and try again.
+            </p>
+            <Button
+              onClick={() => window.location.reload()}
+              className="bg-[#FF5733] hover:bg-[#E6492E]"
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1]">
-      {/* Header */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-[#FF5733] rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">Z</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">{restaurant?.name || 'Restaurant'}</h1>
-                <p className="text-sm text-gray-600">Table {tableNumber}</p>
-              </div>
-            </div>
-            
-            {/* Cart Summary */}
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Total</p>
-                <p className="text-lg font-bold text-[#FF5733]">₹{cartTotal.toFixed(2)}</p>
-              </div>
-              <Button
-                onClick={() => setShowCart(true)}
-                className="bg-[#FF5733] hover:bg-[#E6492E] relative"
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)})
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Session Timer */}
-      <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-sm text-yellow-800 text-center">
-            Session expires in: {Math.floor(sessionTimeLeft / 60)}:{(sessionTimeLeft % 60).toString().padStart(2, '0')}
-          </p>
-        </div>
-      </div>
+      <MenuHeader 
+        restaurant={restaurant}
+        tableNumber={tableNumber}
+        cartTotal={cartTotal}
+        cartItemCount={cartItemCount}
+        onCartClick={() => setShowCart(true)}
+        sessionTimeLeft={sessionTimeLeft}
+      />
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="grid lg:grid-cols-4 gap-6">
-          {/* Search and Filters */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle className="text-lg">Search & Filter</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search menu items..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+          <MenuSearch 
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            menuItemsCount={menuItems.length}
+            cartItemCount={cartItemCount}
+          />
 
-                {/* Categories would go here if implemented */}
-                <div>
-                  <h4 className="font-semibold mb-2">Quick Stats</h4>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p>Items in menu: {menuItems?.length || 0}</p>
-                    <p>Items in cart: {cart.reduce((sum, item) => sum + item.quantity, 0)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Menu Items */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Popular Items */}
-            {popularItems.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Today's Popular Items</h2>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                  {popularItems.map((item) => (
-                    <Card key={item.id} className="border-orange-200 bg-orange-50">
-                      <CardContent className="p-4">
-                        {item.image_url && (
-                          <img 
-                            src={item.image_url} 
-                            alt={item.name}
-                            className="w-full h-32 object-cover rounded-lg mb-3"
-                          />
-                        )}
-                        <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
-                        {item.description && (
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-xl font-bold text-[#FF5733]">₹{item.price}</span>
-                          <Button
-                            onClick={() => addToCart(item)}
-                            className="bg-[#FF5733] hover:bg-[#E6492E] text-white"
-                            size="sm"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* All Menu Items */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">All Menu Items</h2>
-              {menuItemsLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF5733] mx-auto"></div>
-                  <p className="text-gray-600 mt-2">Loading menu...</p>
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-gray-600">
-                      {searchTerm ? 'No items match your search' : 'No menu items available'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredItems.map((item) => (
-                    <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                      <CardContent className="p-4">
-                        {item.image_url && (
-                          <img 
-                            src={item.image_url} 
-                            alt={item.name}
-                            className="w-full h-32 object-cover rounded-lg mb-3"
-                          />
-                        )}
-                        <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
-                        {item.description && (
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-xl font-bold text-[#FF5733]">₹{item.price}</span>
-                          <Button
-                            onClick={() => addToCart(item)}
-                            className="bg-[#FF5733] hover:bg-[#E6492E] text-white"
-                            size="sm"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <MenuGrid 
+            popularItems={popularItems}
+            filteredItems={filteredItems}
+            onAddToCart={addToCart}
+            isLoading={menuItemsLoading}
+            searchTerm={searchTerm}
+          />
         </div>
       </div>
 
-      {/* Cart Modal */}
-      <Dialog open={showCart} onOpenChange={setShowCart}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-[#FF5733]">Your Order</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {cart.length === 0 ? (
-              <p className="text-center text-gray-600 py-8">Your cart is empty</p>
-            ) : (
-              <>
-                {cart.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between border-b pb-3">
-                    <div className="flex-1">
-                      <h4 className="font-semibold">{item.name}</h4>
-                      <p className="text-sm text-gray-600">₹{item.price} each</p>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                      <span className="font-semibold">{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                      <span className="text-[#FF5733] font-bold w-16 text-right">
-                        ₹{(item.price * item.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                <div className="border-t pt-3">
-                  <div className="flex justify-between items-center text-xl font-bold">
-                    <span>Total:</span>
-                    <span className="text-[#FF5733]">₹{cartTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <Button
-                    onClick={placeOrder}
-                    className="flex-1 bg-[#FF5733] hover:bg-[#E6492E] text-white"
-                    disabled={placeOrderMutation.isPending}
-                  >
-                    {placeOrderMutation.isPending ? 'Placing Order...' : 'Place Order'}
-                  </Button>
-                  <Button
-                    onClick={() => setShowBillDialog(true)}
-                    variant="outline"
-                    className="border-[#FF5733] text-[#FF5733]"
-                  >
-                    Generate Bill
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CartModal 
+        open={showCart}
+        onOpenChange={setShowCart}
+        cart={cart}
+        cartTotal={cartTotal}
+        onUpdateQuantity={updateQuantity}
+        onPlaceOrder={() => placeOrderMutation.mutate()}
+        onGenerateBill={() => setShowBillDialog(true)}
+        isPlacingOrder={placeOrderMutation.isPending}
+      />
 
-      {/* Bill Generation Dialog */}
       <AlertDialog open={showBillDialog} onOpenChange={setShowBillDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
