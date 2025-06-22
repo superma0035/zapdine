@@ -2,16 +2,21 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurants } from '@/hooks/useRestaurants';
+import CreateRestaurantModal from '@/components/CreateRestaurantModal';
 import Sidebar from '@/components/Sidebar';
 import OverviewDashboard from '@/components/OverviewDashboard';
 import TodaysOrdersDashboard from '@/components/TodaysOrdersDashboard';
 import MenuItemsDashboard from '@/components/MenuItemsDashboard';
 import TablesDashboard from '@/components/TablesDashboard';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Store, Plus } from 'lucide-react';
 
 const Dashboard = () => {
   const { profile } = useAuth();
   const { data: restaurants } = useRestaurants();
   const [activeTab, setActiveTab] = useState('orders');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const restaurant = restaurants?.[0];
 
@@ -29,18 +34,59 @@ const Dashboard = () => {
     }
   };
 
+  const WelcomeScreen = () => (
+    <div className="max-w-4xl mx-auto text-center py-12">
+      <div className="bg-white rounded-2xl shadow-lg p-8 lg:p-12">
+        <div className="w-20 h-20 bg-[#FF5733] rounded-full flex items-center justify-center mx-auto mb-6">
+          <Store className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Welcome to ZapDine!</h2>
+        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          You're just one step away from revolutionizing your restaurant's dining experience. 
+          Let's get your restaurant set up with our QR-powered ordering system.
+        </p>
+        
+        <Card className="bg-gradient-to-br from-[#FF5733] to-[#FF7F50] text-white mb-8">
+          <CardHeader>
+            <CardTitle className="text-white text-xl">What you'll get:</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4 text-left">
+              <div className="space-y-2">
+                <p>✓ QR code menu for each table</p>
+                <p>✓ Real-time order management</p>
+                <p>✓ Digital menu builder</p>
+              </div>
+              <div className="space-y-2">
+                <p>✓ Customer order tracking</p>
+                <p>✓ Analytics and insights</p>
+                <p>✓ Seamless payment integration</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          size="lg"
+          className="bg-[#FF5733] hover:bg-[#E6492E] text-white text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Register Your Restaurant
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1]">
       <div className="flex h-screen">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         
         <div className="flex-1 md:pl-64">
           <main className="p-6 overflow-auto h-full">
             {!restaurant && !profile?.has_restaurant ? (
-              <div className="text-center py-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to ZapDine!</h2>
-                <p className="text-gray-600 mb-6">Create your restaurant to get started with managing orders and menu items.</p>
-              </div>
+              <WelcomeScreen />
             ) : (
               renderContent()
             )}
@@ -52,10 +98,15 @@ const Dashboard = () => {
       <footer className="bg-white border-t border-gray-200 py-4 md:pl-64">
         <div className="px-6">
           <p className="text-center text-gray-600">
-            Powered by <span className="font-semibold text-brand-600">SPS Labs</span>
+            Powered by <span className="font-semibold text-[#FF5733]">SPS Labs</span>
           </p>
         </div>
       </footer>
+
+      <CreateRestaurantModal 
+        open={showCreateModal} 
+        onOpenChange={setShowCreateModal} 
+      />
     </div>
   );
 };

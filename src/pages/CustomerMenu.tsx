@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Minus, ShoppingCart, Search, TrendingUp } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Minus, ShoppingCart, Search, TrendingUp, Star, Clock, Receipt } from 'lucide-react';
 import { useMenuItems } from '@/hooks/useMenuItems';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -29,13 +30,48 @@ const CustomerMenu = () => {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [restaurant, setRestaurant] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [sessionTime, setSessionTime] = useState(0);
+  const [showBillConfirm, setShowBillConfirm] = useState(false);
 
   useEffect(() => {
     if (restaurantId) {
       fetchRestaurant();
     }
   }, [restaurantId]);
+
+  // Session timer - 2 hours = 7200 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionTime(prev => {
+        const newTime = prev + 1;
+        if (newTime >= 7200) { // 2 hours
+          handleSessionExpiry();
+          return 0;
+        }
+        return newTime;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleSessionExpiry = () => {
+    toast({
+      title: "Session Expired",
+      description: "Your session has expired. Please start a new order.",
+      variant: "destructive"
+    });
+    setCart([]);
+    setCustomerName('');
+    setOrderNotes('');
+  };
+
+  const formatSessionTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const fetchRestaurant = async () => {
     try {
@@ -59,10 +95,7 @@ const CustomerMenu = () => {
     return matchesSearch;
   }) || [];
 
-  // Get categories from menu items
-  const categories = ['all', ...new Set(menuItems?.map(item => item.category_id || 'uncategorized').filter(Boolean))];
-
-  // Popular items (mock data - in real app, this would come from order history)
+  // Popular items (top 3)
   const popularItems = menuItems?.slice(0, 3) || [];
 
   const addToCart = (item: any) => {
@@ -161,17 +194,14 @@ const CustomerMenu = () => {
       if (itemsError) throw itemsError;
 
       toast({
-        title: "Order Placed!",
-        description: "Your order has been successfully placed.",
+        title: "Order Placed Successfully! 🎉",
+        description: "Your order has been sent to the kitchen. You'll receive updates soon.",
       });
 
       // Reset form
       setCart([]);
       setCustomerName('');
       setOrderNotes('');
-      
-      // Generate bill
-      generateBill(order, cart);
       
     } catch (error) {
       console.error('Error placing order:', error);
@@ -185,70 +215,102 @@ const CustomerMenu = () => {
     }
   };
 
-  const generateBill = (order: any, items: CartItem[]) => {
+  const generateBill = () => {
+    if (cart.length === 0) {
+      toast({
+        title: "No Items",
+        description: "Add items to cart before generating bill",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const billContent = `
-      ZAPDINE BILL
-      ============
+      ═══════════════════════════════
+              ZAPDINE BILL
+      ═══════════════════════════════
       Restaurant: ${restaurant?.name || 'Restaurant'}
       Table: ${tableNumber}
-      Customer: ${customerName}
-      Order ID: ${order.id}
+      Customer: ${customerName || 'Guest'}
       Date: ${new Date().toLocaleString()}
+      Session Time: ${formatSessionTime(sessionTime)}
       
-      ITEMS:
-      ${items.map(item => 
-        `${item.name} x${item.quantity} - $${(item.price * item.quantity).toFixed(2)}`
+      ═══════════════════════════════
+                    ITEMS
+      ═══════════════════════════════
+      ${cart.map(item => 
+        `${item.name.padEnd(20)} x${item.quantity.toString().padStart(2)} ₹${(item.price * item.quantity).toFixed(2).padStart(8)}`
       ).join('\n')}
       
-      TOTAL: $${getTotalAmount().toFixed(2)}
+      ═══════════════════════════════
+      TOTAL AMOUNT: ₹${getTotalAmount().toFixed(2)}
+      ═══════════════════════════════
       
       Thank you for dining with us!
+      Powered by ZapDine
     `;
 
-    // Create a blob and download
     const blob = new Blob([billContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `bill-${order.id}.txt`;
+    link.download = `bill-${tableNumber}-${Date.now()}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    // End session
+    setCart([]);
+    setCustomerName('');
+    setOrderNotes('');
+    setSessionTime(0);
+    setShowBillConfirm(false);
+    
+    toast({
+      title: "Bill Generated",
+      description: "Your session has ended. Thank you for dining with us!",
+    });
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-brand-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <div className="w-16 h-16 bg-[#FF5733] rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
-          <p className="text-gray-600">Loading menu...</p>
+          <p className="text-gray-600">Loading delicious menu...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-brand-500 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#FF5733] rounded-full flex items-center justify-center">
                 <span className="text-sm font-bold text-white">Z</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-brand-600">{restaurant?.name || 'Restaurant'}</h1>
+                <h1 className="text-xl font-bold text-[#FF5733]">{restaurant?.name || 'Restaurant'}</h1>
                 <p className="text-sm text-gray-600">Table {tableNumber}</p>
               </div>
             </div>
-            <Badge variant="outline" className="border-brand-200 text-brand-600">
-              <ShoppingCart className="w-4 h-4 mr-1" />
-              {cart.reduce((sum, item) => sum + item.quantity, 0)} items
-            </Badge>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Session Time</p>
+                <p className="text-sm font-mono text-[#FF5733]">{formatSessionTime(sessionTime)}</p>
+              </div>
+              <Badge variant="outline" className="border-[#FF5733] text-[#FF5733]">
+                <ShoppingCart className="w-4 h-4 mr-1" />
+                {cart.reduce((sum, item) => sum + item.quantity, 0)} items
+              </Badge>
+            </div>
           </div>
         </div>
       </header>
@@ -259,35 +321,39 @@ const CustomerMenu = () => {
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              placeholder="Search menu items..."
+              placeholder="Search delicious items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 focus:border-brand-500 focus:ring-brand-500"
+              className="pl-10 focus:border-[#FF5733] focus:ring-[#FF5733] border-[#FF5733]/20"
             />
           </div>
         </div>
 
-        {/* Popular Items */}
+        {/* Today's Popular Items */}
         {!searchTerm && popularItems.length > 0 && (
-          <Card className="border-brand-100 mb-8">
-            <CardHeader>
-              <CardTitle className="text-brand-600 flex items-center">
+          <Card className="border-[#FF5733]/20 mb-8 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-[#FF5733] to-[#FF7F50] text-white rounded-t-lg">
+              <CardTitle className="flex items-center">
                 <TrendingUp className="w-5 h-5 mr-2" />
                 Today's Popular Items
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {popularItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-brand-50 rounded-lg">
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-[#FFF5F3] to-[#FFE8E1] rounded-lg border border-[#FF5733]/10">
                     <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-brand-600 font-semibold">${item.price}</p>
+                      <p className="font-medium text-gray-900">{item.name}</p>
+                      <p className="text-[#FF5733] font-bold">₹{item.price}</p>
+                      <div className="flex items-center mt-1">
+                        <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                        <span className="text-xs text-gray-500 ml-1">Popular</span>
+                      </div>
                     </div>
                     <Button
                       size="sm"
                       onClick={() => addToCart(item)}
-                      className="bg-brand-500 hover:bg-brand-600"
+                      className="bg-[#FF5733] hover:bg-[#E6492E]"
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -299,11 +365,11 @@ const CustomerMenu = () => {
         )}
 
         {/* Customer Info */}
-        <Card className="border-brand-100 mb-6">
-          <CardHeader>
-            <CardTitle className="text-brand-600">Your Information</CardTitle>
+        <Card className="border-[#FF5733]/20 mb-6 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-[#FF5733] to-[#FF7F50] text-white rounded-t-lg">
+            <CardTitle>Your Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             <div>
               <Label htmlFor="customerName">Your Name *</Label>
               <Input
@@ -311,7 +377,7 @@ const CustomerMenu = () => {
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Enter your name"
-                className="focus:border-brand-500 focus:ring-brand-500"
+                className="focus:border-[#FF5733] focus:ring-[#FF5733]"
               />
             </div>
             <div>
@@ -321,7 +387,7 @@ const CustomerMenu = () => {
                 value={orderNotes}
                 onChange={(e) => setOrderNotes(e.target.value)}
                 placeholder="Any special requests or dietary requirements"
-                className="focus:border-brand-500 focus:ring-brand-500"
+                className="focus:border-[#FF5733] focus:ring-[#FF5733]"
               />
             </div>
           </CardContent>
@@ -330,7 +396,7 @@ const CustomerMenu = () => {
         {/* Menu Items */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {filteredItems?.map((item) => (
-            <Card key={item.id} className="border-brand-100">
+            <Card key={item.id} className="border-[#FF5733]/20 shadow-lg hover:shadow-xl transition-shadow duration-200">
               <CardContent className="p-6">
                 {item.image_url && (
                   <img 
@@ -344,7 +410,7 @@ const CustomerMenu = () => {
                   <p className="text-gray-600 text-sm mb-3">{item.description}</p>
                 )}
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-brand-600">${item.price}</span>
+                  <span className="text-xl font-bold text-[#FF5733]">₹{item.price}</span>
                   <div className="flex items-center space-x-2">
                     {getCartItemQuantity(item.id) > 0 ? (
                       <>
@@ -352,17 +418,17 @@ const CustomerMenu = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => removeFromCart(item.id)}
-                          className="border-brand-200 hover:border-brand-300"
+                          className="border-[#FF5733]/30 hover:border-[#FF5733]"
                         >
                           <Minus className="w-4 h-4" />
                         </Button>
-                        <span className="w-8 text-center font-semibold">
+                        <span className="w-8 text-center font-semibold text-[#FF5733]">
                           {getCartItemQuantity(item.id)}
                         </span>
                         <Button
                           size="sm"
                           onClick={() => addToCart(item)}
-                          className="bg-brand-500 hover:bg-brand-600"
+                          className="bg-[#FF5733] hover:bg-[#E6492E]"
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -371,7 +437,7 @@ const CustomerMenu = () => {
                       <Button
                         size="sm"
                         onClick={() => addToCart(item)}
-                        className="bg-brand-500 hover:bg-brand-600"
+                        className="bg-[#FF5733] hover:bg-[#E6492E]"
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         Add
@@ -384,34 +450,75 @@ const CustomerMenu = () => {
           ))}
         </div>
 
-        {/* Cart Summary */}
+        {/* Order Summary */}
         {cart.length > 0 && (
-          <Card className="border-brand-100 sticky bottom-4">
-            <CardHeader>
-              <CardTitle className="text-brand-600">Order Summary</CardTitle>
+          <Card className="border-[#FF5733]/20 sticky bottom-4 shadow-xl">
+            <CardHeader className="bg-gradient-to-r from-[#FF5733] to-[#FF7F50] text-white rounded-t-lg">
+              <CardTitle>Order Summary</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <div className="space-y-2 mb-4">
                 {cart.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center">
-                    <span>{item.name} x{item.quantity}</span>
-                    <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+                  <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-900">{item.name} x{item.quantity}</span>
+                    <span className="font-semibold text-[#FF5733]">₹{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t pt-2 mb-4">
+              <div className="border-t pt-4 mb-6">
                 <div className="flex justify-between items-center text-lg font-bold">
-                  <span>Total:</span>
-                  <span className="text-brand-600">${getTotalAmount().toFixed(2)}</span>
+                  <span>Total Amount:</span>
+                  <span className="text-[#FF5733] text-xl">₹{getTotalAmount().toFixed(2)}</span>
                 </div>
               </div>
-              <Button
-                onClick={placeOrder}
-                disabled={isPlacingOrder || !customerName.trim()}
-                className="w-full bg-brand-500 hover:bg-brand-600 text-white"
-              >
-                {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  onClick={placeOrder}
+                  disabled={isPlacingOrder || !customerName.trim()}
+                  className="flex-1 bg-[#FF5733] hover:bg-[#E6492E] text-white py-3"
+                >
+                  {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
+                </Button>
+                <Dialog open={showBillConfirm} onOpenChange={setShowBillConfirm}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="border-[#FF5733] text-[#FF5733] hover:bg-[#FF5733] hover:text-white">
+                      <Receipt className="w-4 h-4 mr-2" />
+                      Generate Bill
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>End Session & Generate Bill</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <p>Are you sure you want to generate the bill? This will end your current session.</p>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" onClick={() => setShowBillConfirm(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={generateBill} className="bg-[#FF5733] hover:bg-[#E6492E]">
+                          Generate Bill
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {filteredItems.length === 0 && (
+          <Card className="border-[#FF5733]/20 shadow-lg">
+            <CardContent className="text-center py-12">
+              <div className="w-16 h-16 bg-[#FF5733]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-8 h-8 text-[#FF5733]" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No items found</h3>
+              <p className="text-gray-600">
+                {searchTerm ? 'Try adjusting your search terms' : 'Menu will be available soon'}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -421,7 +528,7 @@ const CustomerMenu = () => {
       <footer className="mt-16 bg-white border-t border-gray-200 py-6">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <p className="text-gray-600">
-            Powered by <span className="font-semibold text-brand-600">SPS Labs</span>
+            Powered by <span className="font-semibold text-[#FF5733]">SPS Labs</span>
           </p>
         </div>
       </footer>
