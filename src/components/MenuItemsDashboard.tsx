@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { useRestaurants } from '@/hooks/useRestaurants';
 import { useMenuItems, useDeleteMenuItem } from '@/hooks/useMenuItems';
 import CreateMenuItemModal from '@/components/CreateMenuItemModal';
@@ -21,9 +21,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const MenuItemsDashboard = () => {
-  const { data: restaurants } = useRestaurants();
+  const { data: restaurants, isLoading: restaurantsLoading } = useRestaurants();
   const restaurant = restaurants?.[0];
-  const { data: menuItems } = useMenuItems(restaurant?.id);
+  const { data: menuItems, isLoading: menuItemsLoading, error: menuItemsError } = useMenuItems(restaurant?.id);
   const deleteMenuItem = useDeleteMenuItem();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,6 +40,50 @@ const MenuItemsDashboard = () => {
       console.error('Error deleting menu item:', error);
     }
   };
+
+  if (restaurantsLoading || menuItemsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (menuItemsError) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-red-200">
+          <CardContent className="text-center py-12">
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Error Loading Menu Items</h3>
+            <p className="text-gray-600 mb-4">
+              Unable to connect to the database. Please check your connection and try again.
+            </p>
+            <Button
+              onClick={() => window.location.reload()}
+              className="bg-brand-500 hover:bg-brand-600"
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!restaurant) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-yellow-200">
+          <CardContent className="text-center py-12">
+            <h3 className="text-lg font-semibold text-yellow-600 mb-2">No Restaurant Found</h3>
+            <p className="text-gray-600">Please set up your restaurant first.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -87,7 +131,7 @@ const MenuItemsDashboard = () => {
         <Card className="border-brand-100">
           <CardContent className="p-6 text-center">
             <p className="text-2xl font-bold text-brand-600">
-              ${((menuItems?.reduce((sum, item) => sum + item.price, 0) || 0) / (menuItems?.length || 1)).toFixed(2)}
+              ₹{((menuItems?.reduce((sum, item) => sum + item.price, 0) || 0) / (menuItems?.length || 1)).toFixed(2)}
             </p>
             <p className="text-sm text-gray-600">Average Price</p>
           </CardContent>
@@ -104,6 +148,9 @@ const MenuItemsDashboard = () => {
                   src={item.image_url} 
                   alt={item.name}
                   className="w-full h-32 object-cover rounded-lg mb-4"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               )}
               <div className="space-y-3">
@@ -119,7 +166,7 @@ const MenuItemsDashboard = () => {
                 )}
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-brand-600">${item.price}</span>
+                  <span className="text-xl font-bold text-brand-600">₹{item.price}</span>
                   <div className="flex space-x-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -153,7 +200,7 @@ const MenuItemsDashboard = () => {
         ))}
       </div>
 
-      {filteredItems.length === 0 && (
+      {filteredItems.length === 0 && !menuItemsLoading && (
         <Card className="border-brand-100">
           <CardContent className="text-center py-12">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No menu items found</h3>

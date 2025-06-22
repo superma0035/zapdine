@@ -34,6 +34,8 @@ export const useMenuItems = (restaurantId: string | undefined) => {
     queryFn: async () => {
       if (!restaurantId) return [];
       
+      console.log('Fetching menu items for restaurant:', restaurantId);
+      
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
@@ -41,10 +43,17 @@ export const useMenuItems = (restaurantId: string | undefined) => {
         .eq('is_available', true)
         .order('sort_order', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching menu items:', error);
+        throw error;
+      }
+      
+      console.log('Menu items fetched:', data?.length || 0);
       return data as MenuItem[];
     },
-    enabled: !!restaurantId
+    enabled: !!restaurantId,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };
 
@@ -53,13 +62,20 @@ export const useCreateMenuItem = () => {
 
   return useMutation({
     mutationFn: async (menuItemData: CreateMenuItemData) => {
+      console.log('Creating menu item:', menuItemData);
+      
       const { data, error } = await supabase
         .from('menu_items')
         .insert(menuItemData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating menu item:', error);
+        throw error;
+      }
+      
+      console.log('Menu item created:', data);
       return data;
     },
     onSuccess: (_, variables) => {
@@ -70,9 +86,10 @@ export const useCreateMenuItem = () => {
       });
     },
     onError: (error: any) => {
+      console.error('Create menu item error:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create menu item",
+        description: error.message || "Failed to create menu item. Please check your connection and try again.",
         variant: "destructive"
       });
     }
@@ -84,12 +101,17 @@ export const useDeleteMenuItem = () => {
 
   return useMutation({
     mutationFn: async (itemId: string) => {
+      console.log('Deleting menu item:', itemId);
+      
       const { error } = await supabase
         .from('menu_items')
         .update({ is_available: false })
         .eq('id', itemId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting menu item:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu-items'] });
@@ -99,9 +121,10 @@ export const useDeleteMenuItem = () => {
       });
     },
     onError: (error: any) => {
+      console.error('Delete menu item error:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete menu item",
+        description: error.message || "Failed to delete menu item. Please check your connection and try again.",
         variant: "destructive"
       });
     }
