@@ -12,10 +12,25 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('ProtectedRoute - Loading:', loading, 'User:', user?.email || 'No user');
+    
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log('Loading timeout reached, checking auth state...');
+        if (!user) {
+          console.log('No user after timeout, redirecting to auth');
+          navigate('/auth', { replace: true });
+        }
+      }
+    }, 5000); // 5 second timeout
+
     if (!loading && !user) {
-      console.log('No user found, redirecting to auth');
+      console.log('No user found and not loading, redirecting to auth');
       navigate('/auth', { replace: true });
     }
+
+    return () => clearTimeout(timeoutId);
   }, [user, loading, navigate]);
 
   if (loading) {
@@ -27,6 +42,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           </div>
           <h3 className="text-lg font-semibold mb-2">Loading ZapDine...</h3>
           <p className="text-white/80">Setting up your restaurant dashboard</p>
+          <div className="mt-4">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          </div>
         </div>
       </div>
     );
