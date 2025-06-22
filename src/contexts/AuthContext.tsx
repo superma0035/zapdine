@@ -71,7 +71,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       try {
         console.log('Initializing auth...');
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
         
         if (!mounted) return;
         
@@ -108,12 +116,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
         }
         
-        // Only set loading to false after we've processed the auth change
-        setTimeout(() => {
-          if (mounted) {
-            setLoading(false);
-          }
-        }, 100);
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setLoading(false);
+        }
       }
     );
 
@@ -150,10 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password
     });
     
-    if (!error) {
-      // Don't set loading to false here, let the auth state change handle it
-      console.log('Sign in successful, waiting for auth state change...');
-    } else {
+    if (error) {
       setLoading(false);
     }
     

@@ -14,23 +14,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   useEffect(() => {
     console.log('ProtectedRoute - Loading:', loading, 'User:', user?.email || 'No user');
     
-    // Add a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.log('Loading timeout reached, checking auth state...');
-        if (!user) {
-          console.log('No user after timeout, redirecting to auth');
-          navigate('/auth', { replace: true });
-        }
-      }
-    }, 5000); // 5 second timeout
-
     if (!loading && !user) {
       console.log('No user found and not loading, redirecting to auth');
       navigate('/auth', { replace: true });
     }
-
-    return () => clearTimeout(timeoutId);
   }, [user, loading, navigate]);
 
   if (loading) {

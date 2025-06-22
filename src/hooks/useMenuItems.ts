@@ -1,15 +1,15 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 export interface MenuItem {
   id: string;
   restaurant_id: string;
-  category_id: string | null;
   name: string;
   description: string | null;
   price: number;
+  category_id: string | null;
   image_url: string | null;
   is_available: boolean;
   sort_order: number;
@@ -17,43 +17,33 @@ export interface MenuItem {
   updated_at: string;
 }
 
-export interface CreateMenuItemData {
-  restaurant_id: string;
-  name: string;
-  description?: string;
-  price: number;
-  category_id?: string;
-  image_url?: string;
-  is_available?: boolean;
-  sort_order?: number;
-}
-
-export const useMenuItems = (restaurantId: string | undefined) => {
+export const useMenuItems = (restaurantId?: string) => {
   return useQuery({
     queryKey: ['menu-items', restaurantId],
     queryFn: async () => {
-      if (!restaurantId) return [];
-      
+      if (!restaurantId) {
+        return [];
+      }
+
       console.log('Fetching menu items for restaurant:', restaurantId);
       
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
         .eq('restaurant_id', restaurantId)
-        .eq('is_available', true)
         .order('sort_order', { ascending: true });
 
       if (error) {
         console.error('Error fetching menu items:', error);
         throw error;
       }
-      
+
       console.log('Menu items fetched:', data?.length || 0);
-      return data as MenuItem[];
+      return data || [];
     },
     enabled: !!restaurantId,
-    retry: 3,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 
@@ -61,12 +51,12 @@ export const useCreateMenuItem = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (menuItemData: CreateMenuItemData) => {
-      console.log('Creating menu item:', menuItemData);
+    mutationFn: async (menuItem: Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>) => {
+      console.log('Creating menu item:', menuItem);
       
       const { data, error } = await supabase
         .from('menu_items')
-        .insert(menuItemData)
+        .insert([menuItem])
         .select()
         .single();
 
@@ -74,25 +64,18 @@ export const useCreateMenuItem = () => {
         console.error('Error creating menu item:', error);
         throw error;
       }
-      
-      console.log('Menu item created:', data);
+
       return data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['menu-items', variables.restaurant_id] });
-      toast({
-        title: "Success!",
-        description: "Menu item created successfully!",
-      });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['menu-items'] });
+      toast.success('Menu item created successfully');
+      console.log('Menu item created:', data);
     },
     onError: (error: any) => {
-      console.error('Create menu item error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create menu item. Please check your connection and try again.",
-        variant: "destructive"
-      });
-    }
+      console.error('Failed to create menu item:', error);
+      toast.error('Failed to create menu item: ' + (error?.message || 'Unknown error'));
+    },
   });
 };
 
@@ -105,7 +88,7 @@ export const useDeleteMenuItem = () => {
       
       const { error } = await supabase
         .from('menu_items')
-        .update({ is_available: false })
+        .delete()
         .eq('id', itemId);
 
       if (error) {
@@ -115,18 +98,11 @@ export const useDeleteMenuItem = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu-items'] });
-      toast({
-        title: "Success!",
-        description: "Menu item deleted successfully!",
-      });
+      toast.success('Menu item deleted successfully');
     },
     onError: (error: any) => {
-      console.error('Delete menu item error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete menu item. Please check your connection and try again.",
-        variant: "destructive"
-      });
-    }
+      console.error('Failed to delete menu item:', error);
+      toast.error('Failed to delete menu item: ' + (error?.message || 'Unknown error'));
+    },
   });
 };
