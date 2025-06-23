@@ -22,15 +22,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#FF5733] to-[#FF7F50] flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse backdrop-blur-sm">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse backdrop-blur-sm">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Loading ZapDine...</h3>
-          <p className="text-white/80">Setting up your restaurant dashboard</p>
+          <h3 className="text-lg font-semibold mb-2 text-gray-800">Loading ZapDine...</h3>
+          <p className="text-gray-600">Setting up your restaurant dashboard</p>
           <div className="mt-4">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
           </div>
         </div>
       </div>

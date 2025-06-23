@@ -37,7 +37,7 @@ const Dashboard = () => {
   const WelcomeScreen = () => (
     <div className="max-w-4xl mx-auto text-center py-12">
       <div className="bg-white rounded-2xl shadow-lg p-8 lg:p-12">
-        <div className="w-20 h-20 bg-[#FF5733] rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <Store className="w-10 h-10 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Welcome to ZapDine!</h2>
@@ -46,7 +46,7 @@ const Dashboard = () => {
           Let's get your restaurant set up with our QR-powered ordering system.
         </p>
         
-        <Card className="bg-gradient-to-br from-[#FF5733] to-[#FF7F50] text-white mb-8">
+        <Card className="bg-gradient-to-br from-amber-500 to-orange-500 text-white mb-8">
           <CardHeader>
             <CardTitle className="text-white text-xl">What you'll get:</CardTitle>
           </CardHeader>
@@ -69,7 +69,7 @@ const Dashboard = () => {
         <Button
           onClick={() => setShowCreateModal(true)}
           size="lg"
-          className="bg-[#FF5733] hover:bg-[#E6492E] text-white text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+          className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
         >
           <Plus className="w-5 h-5 mr-2" />
           Register Your Restaurant
@@ -79,7 +79,7 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1]">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50">
       <div className="flex h-screen">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         
@@ -98,7 +98,7 @@ const Dashboard = () => {
       <footer className="bg-white border-t border-gray-200 py-4 md:pl-64">
         <div className="px-6">
           <p className="text-center text-gray-600">
-            Powered by <span className="font-semibold text-[#FF5733]">SPS Labs</span>
+            Powered by <span className="font-semibold text-amber-600">SPS Labs</span>
           </p>
         </div>
       </footer>

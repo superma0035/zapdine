@@ -25,7 +25,31 @@ export const useAuthState = () => {
       try {
         console.log('Initializing auth...');
         
-        // Set up auth state listener first
+        // Get current session first
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Set initial state
+        if (mounted) {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+          
+          if (currentSession?.user) {
+            const profileData = await authService.fetchProfile(currentSession.user.id);
+            setProfile(profileData);
+          }
+          
+          setLoading(false);
+        }
+
+        // Set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             console.log('Auth state changed:', event, session?.user?.email || 'No session');
@@ -41,34 +65,10 @@ export const useAuthState = () => {
             } else if (!session) {
               setProfile(null);
             }
-            
-            // Set loading to false after processing auth state
-            setLoading(false);
           }
         );
 
-        // Then get current session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
-        
-        if (!mounted) return;
-        
-        console.log('Initial session:', session?.user?.email || 'No session');
-        
-        // If we have a session, the onAuthStateChange will handle it
-        if (!session && mounted) {
-          setLoading(false);
-        }
-
         return () => {
-          mounted = false;
           subscription.unsubscribe();
         };
       } catch (error) {
@@ -79,12 +79,13 @@ export const useAuthState = () => {
       }
     };
 
-    initializeAuth();
+    const cleanup = initializeAuth();
 
     return () => {
       mounted = false;
+      cleanup?.then(cleanupFn => cleanupFn?.());
     };
-  }, []); // Removed user dependency to prevent infinite loop
+  }, []);
 
   return {
     user,

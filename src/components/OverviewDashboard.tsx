@@ -70,15 +70,15 @@ const OverviewDashboard = () => {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="border-brand-100">
+            <Card key={index} className="border-amber-100">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">{stat.title}</p>
                     <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                   </div>
-                  <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-brand-600" />
+                  <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <Icon className="w-6 h-6 text-amber-600" />
                   </div>
                 </div>
                 <div className="mt-4">
@@ -97,9 +97,9 @@ const OverviewDashboard = () => {
 
       {/* Restaurant Info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-brand-100">
+        <Card className="border-amber-100">
           <CardHeader>
-            <CardTitle className="text-brand-600">Restaurant Info</CardTitle>
+            <CardTitle className="text-amber-600">Restaurant Info</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
@@ -121,15 +121,15 @@ const OverviewDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-brand-100">
+        <Card className="border-amber-100">
           <CardHeader>
-            <CardTitle className="text-brand-600">Recent Orders</CardTitle>
+            <CardTitle className="text-amber-600">Recent Orders</CardTitle>
           </CardHeader>
           <CardContent>
             {recentOrders.length > 0 ? (
               <div className="space-y-3">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={order.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                     <div>
                       <p className="font-medium">{order.customer_name || 'Anonymous'}</p>
                       <p className="text-sm text-gray-600">Table {order.table_number}</p>
