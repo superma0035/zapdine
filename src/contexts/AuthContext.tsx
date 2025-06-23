@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -222,18 +223,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // Explicitly type the query result to avoid type inference issues
-      const profileQuery: { data: { email: string }[] | null; error: any } = await supabase
+      // Use a simpler approach to avoid type inference issues
+      const response = await supabase
         .from('profiles')
         .select('email')
         .eq('phone', phone);
         
-      if (profileQuery.error || !profileQuery.data || profileQuery.data.length === 0) {
+      if (response.error || !response.data || response.data.length === 0) {
         setLoading(false);
         return { error: { message: 'Phone number not found' } };
       }
       
-      const userEmail = profileQuery.data[0]?.email;
+      const userEmail = response.data[0]?.email;
       if (!userEmail) {
         setLoading(false);
         return { error: { message: 'Phone number not found' } };
@@ -301,3 +302,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
