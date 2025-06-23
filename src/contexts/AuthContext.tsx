@@ -9,15 +9,18 @@ interface Profile {
   full_name: string | null;
   username: string | null;
   has_restaurant: boolean | null;
+  phone?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  signUp: (email: string, password: string, fullName: string, username: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, username: string, phone?: string) => Promise<{ error: any }>;
+  signIn: (identifier: string, password: string) => Promise<{ error: any }>;
+  signInWithPhone: (phone: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
   loading: boolean;
   refreshProfile: () => Promise<void>;
 }
@@ -71,6 +74,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       try {
         console.log('Initializing auth...');
+        
+        // Set up auth state listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log('Auth state changed:', event, session?.user?.email || 'No session');
+            
+            if (!mounted) return;
+            
+            setSession(session);
+            setUser(session?.user ?? null);
+            
+            if (session?.user && event !== 'TOKEN_REFRESHED') {
+              await fetchProfile(session.user.id);
+            } else if (!session) {
+              setProfile(null);
+            }
+            
+            // Set loading to false after processing auth state
+            setLoading(false);
+          }
+        );
+
+        // Then get current session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -84,14 +110,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!mounted) return;
         
         console.log('Initial session:', session?.user?.email || 'No session');
-        setSession(session);
-        setUser(session?.user ?? null);
         
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        // If we have a session, the onAuthStateChange will handle it
+        if (!session && mounted) {
+          setLoading(false);
         }
-        
-        setLoading(false);
+
+        return () => {
+          mounted = false;
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('Error initializing auth:', error);
         if (mounted) {
@@ -100,66 +128,124 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email || 'No session');
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user && event !== 'TOKEN_REFRESHED') {
-          await fetchProfile(session.user.id);
-        } else if (!session) {
-          setProfile(null);
-        }
-        
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          setLoading(false);
-        }
-      }
-    );
-
     initializeAuth();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, username: string) => {
-    const currentDomain = window.location.origin;
-    const redirectUrl = `${currentDomain}/auth?message=welcome&email=${encodeURIComponent(email)}`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          username: username
+  const signUp = async (email: string, password: string, fullName: string, username: string, phone?: string) => {
+    try {
+      const currentDomain = window.location.origin;
+      const redirectUrl = `${currentDomain}/auth?message=welcome&email=${encodeURIComponent(email)}`;
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+            username: username,
+            phone: phone
+          }
         }
-      }
-    });
-    return { error };
+      });
+      
+      return { error };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      return { error };
+    }
   };
 
-  const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    if (error) {
+  const signIn = async (identifier: string, password: string) => {
+    try {
+      setLoading(true);
+      
+      // Try to sign in with email first
+      let result = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password
+      });
+      
+      // If email login fails and identifier doesn't contain @, try username
+      if (result.error && !identifier.includes('@')) {
+        // Look up email by username
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', identifier)
+          .single();
+          
+        if (profileData?.email) {
+          result = await supabase.auth.signInWithPassword({
+            email: profileData.email,
+            password
+          });
+        }
+      }
+      
+      if (result.error) {
+        setLoading(false);
+      }
+      
+      return { error: result.error };
+    } catch (error: any) {
+      console.error('Signin error:', error);
       setLoading(false);
+      return { error };
     }
-    
-    return { error };
+  };
+
+  const signInWithPhone = async (phone: string, password: string) => {
+    try {
+      setLoading(true);
+      
+      // Look up email by phone number
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('phone', phone)
+        .single();
+        
+      if (!profileData?.email) {
+        setLoading(false);
+        return { error: { message: 'Phone number not found' } };
+      }
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email: profileData.email,
+        password
+      });
+      
+      if (error) {
+        setLoading(false);
+      }
+      
+      return { error };
+    } catch (error: any) {
+      console.error('Phone signin error:', error);
+      setLoading(false);
+      return { error };
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const currentDomain = window.location.origin;
+      const redirectUrl = `${currentDomain}/auth?message=reset`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
+      
+      return { error };
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      return { error };
+    }
   };
 
   const signOut = async () => {
@@ -176,7 +262,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     signUp,
     signIn,
+    signInWithPhone,
     signOut,
+    resetPassword,
     loading,
     refreshProfile
   };
