@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<void> => {
     try {
       console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const refreshProfile = async () => {
+  const refreshProfile = async (): Promise<void> => {
     if (user) {
       await fetchProfile(user.id);
     }
@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, username: string, phone?: string) => {
+  const signUp = async (email: string, password: string, fullName: string, username: string, phone?: string): Promise<{ error: any }> => {
     try {
       const currentDomain = window.location.origin;
       const redirectUrl = `${currentDomain}/auth?message=welcome&email=${encodeURIComponent(email)}`;
@@ -160,38 +160,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signIn = async (identifier: string, password: string) => {
+  const signIn = async (identifier: string, password: string): Promise<{ error: any }> => {
     try {
       setLoading(true);
       
-      // Try to sign in with email first
-      let result = await supabase.auth.signInWithPassword({
+      // Try email login first
+      const emailResult = await supabase.auth.signInWithPassword({
         email: identifier,
         password
       });
       
-      // If email login fails and identifier doesn't contain @, try username
-      if (result.error && !identifier.includes('@')) {
-        // Look up email by username
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('username', identifier)
-          .single();
-          
-        if (profileData?.email) {
-          result = await supabase.auth.signInWithPassword({
-            email: profileData.email,
-            password
-          });
+      // If email login succeeds, return
+      if (!emailResult.error) {
+        return { error: null };
+      }
+      
+      // If identifier doesn't contain @ and email login failed, try username lookup
+      if (!identifier.includes('@')) {
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('username', identifier)
+            .single();
+            
+          if (!profileError && profileData?.email) {
+            const usernameResult = await supabase.auth.signInWithPassword({
+              email: profileData.email,
+              password
+            });
+            
+            if (!usernameResult.error) {
+              return { error: null };
+            }
+          }
+        } catch (usernameError) {
+          console.error('Username lookup error:', usernameError);
         }
       }
       
-      if (result.error) {
-        setLoading(false);
-      }
+      // Return the original email login error
+      setLoading(false);
+      return { error: emailResult.error };
       
-      return { error: result.error };
     } catch (error: any) {
       console.error('Signin error:', error);
       setLoading(false);
@@ -199,18 +210,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithPhone = async (phone: string, password: string) => {
+  const signInWithPhone = async (phone: string, password: string): Promise<{ error: any }> => {
     try {
       setLoading(true);
       
       // Look up email by phone number
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('email')
         .eq('phone', phone)
         .single();
         
-      if (!profileData?.email) {
+      if (profileError || !profileData?.email) {
         setLoading(false);
         return { error: { message: 'Phone number not found' } };
       }
@@ -232,7 +243,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = async (email: string): Promise<{ error: any }> => {
     try {
       const currentDomain = window.location.origin;
       const redirectUrl = `${currentDomain}/auth?message=reset`;
@@ -248,7 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
