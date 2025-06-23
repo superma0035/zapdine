@@ -93,9 +93,12 @@ const CreateMenuItemModal = ({ open, onOpenChange, restaurantId }: CreateMenuIte
       await createMenuItem.mutateAsync({
         restaurant_id: restaurantId,
         name: name.trim(),
-        description: description.trim() || undefined,
+        description: description.trim() || null,
         price: priceNumber,
-        image_url: finalImageUrl || undefined
+        image_url: finalImageUrl || null,
+        category_id: null,
+        is_available: true,
+        sort_order: 0
       });
       
       // Reset form
