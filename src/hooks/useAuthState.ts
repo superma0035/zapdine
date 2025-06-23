@@ -84,7 +84,7 @@ export const useAuthState = () => {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, []); // Removed user dependency to prevent infinite loop
 
   return {
     user,
