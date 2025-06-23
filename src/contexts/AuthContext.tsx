@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -221,8 +222,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // Look up email by phone number without .single()
-      const profileQuery = await supabase
+      // Explicitly type the query result to avoid type inference issues
+      const profileQuery: { data: { email: string }[] | null; error: any } = await supabase
         .from('profiles')
         .select('email')
         .eq('phone', phone);
