@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,15 +12,23 @@ interface Profile {
   phone?: string | null;
 }
 
+interface AuthError {
+  message: string;
+}
+
+interface AuthResult {
+  error: AuthError | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  signUp: (email: string, password: string, fullName: string, username: string, phone?: string) => Promise<{ error: any }>;
-  signIn: (identifier: string, password: string) => Promise<{ error: any }>;
-  signInWithPhone: (phone: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, username: string, phone?: string) => Promise<AuthResult>;
+  signIn: (identifier: string, password: string) => Promise<AuthResult>;
+  signInWithPhone: (phone: string, password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<AuthResult>;
   loading: boolean;
   refreshProfile: () => Promise<void>;
 }
@@ -134,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, username: string, phone?: string): Promise<{ error: any }> => {
+  const signUp = async (email: string, password: string, fullName: string, username: string, phone?: string): Promise<AuthResult> => {
     try {
       const currentDomain = window.location.origin;
       const redirectUrl = `${currentDomain}/auth?message=welcome&email=${encodeURIComponent(email)}`;
@@ -152,14 +161,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      return { error };
+      return { error: error ? { message: error.message } : null };
     } catch (error: any) {
       console.error('Signup error:', error);
-      return { error };
+      return { error: { message: error.message || 'An error occurred during signup' } };
     }
   };
 
-  const signIn = async (identifier: string, password: string): Promise<{ error: any }> => {
+  const signIn = async (identifier: string, password: string): Promise<AuthResult> => {
     try {
       setLoading(true);
       
@@ -200,16 +209,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Return the original email login error
       setLoading(false);
-      return { error: emailResult.error };
+      return { error: { message: emailResult.error.message } };
       
     } catch (error: any) {
       console.error('Signin error:', error);
       setLoading(false);
-      return { error };
+      return { error: { message: error.message || 'An error occurred during signin' } };
     }
   };
 
-  const signInWithPhone = async (phone: string, password: string): Promise<{ error: any }> => {
+  const signInWithPhone = async (phone: string, password: string): Promise<AuthResult> => {
     try {
       setLoading(true);
       
@@ -222,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
       if (profileError || !profileData?.email) {
         setLoading(false);
-        return { error: new Error('Phone number not found') };
+        return { error: { message: 'Phone number not found' } };
       }
       
       const { error } = await supabase.auth.signInWithPassword({
@@ -232,17 +241,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         setLoading(false);
+        return { error: { message: error.message } };
       }
       
-      return { error };
+      return { error: null };
     } catch (error: any) {
       console.error('Phone signin error:', error);
       setLoading(false);
-      return { error };
+      return { error: { message: error.message || 'An error occurred during phone signin' } };
     }
   };
 
-  const resetPassword = async (email: string): Promise<{ error: any }> => {
+  const resetPassword = async (email: string): Promise<AuthResult> => {
     try {
       const currentDomain = window.location.origin;
       const redirectUrl = `${currentDomain}/auth?message=reset`;
@@ -251,10 +261,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         redirectTo: redirectUrl
       });
       
-      return { error };
+      return { error: error ? { message: error.message } : null };
     } catch (error: any) {
       console.error('Reset password error:', error);
-      return { error };
+      return { error: { message: error.message || 'An error occurred during password reset' } };
     }
   };
 
