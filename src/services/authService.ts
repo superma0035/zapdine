@@ -98,12 +98,14 @@ export const authService = {
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
-      // Use explicit typing to avoid TypeScript inference issues
-      const { data: profiles, error: profileError } = await supabase
+      // Explicitly type the query result to avoid TypeScript inference issues
+      const profileQuery = await supabase
         .from('profiles')
         .select('email')
         .eq('phone', phone);
         
+      const { data: profiles, error: profileError } = profileQuery;
+      
       if (profileError || !profiles || profiles.length === 0) {
         return { error: { message: 'Phone number not found' } };
       }
