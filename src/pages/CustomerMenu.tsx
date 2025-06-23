@@ -4,11 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, ShoppingCart, Plus, Minus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MenuHeader from '@/components/customer/MenuHeader';
 import MenuSearch from '@/components/customer/MenuSearch';
@@ -44,69 +41,118 @@ const CustomerMenu = () => {
   const [showCart, setShowCart] = useState(false);
   const [sessionTimeLeft, setSessionTimeLeft] = useState(7200); // 2 hours in seconds
   const [showBillDialog, setShowBillDialog] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
 
-  // Validate required params
-  if (!restaurantId || !tableNumber) {
-    navigate('/');
-    return null;
-  }
+  // Validate required params and redirect if missing
+  useEffect(() => {
+    if (!restaurantId || !tableNumber) {
+      console.error('Missing required parameters:', { restaurantId, tableNumber });
+      toast({
+        title: "Invalid QR Code",
+        description: "The QR code appears to be invalid. Please scan a valid restaurant QR code.",
+        variant: "destructive",
+      });
+      navigate('/');
+    }
+  }, [restaurantId, tableNumber, navigate, toast]);
 
   const fetchMenuItems = async (): Promise<MenuItem[]> => {
+    if (!restaurantId) throw new Error('Restaurant ID is required');
+    
     console.log('Fetching menu items for restaurant:', restaurantId);
-    const { data, error } = await supabase
-      .from('menu_items')
-      .select('*')
-      .eq('restaurant_id', restaurantId)
-      .eq('is_available', true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('id, name, description, price, image_url')
+        .eq('restaurant_id', restaurantId)
+        .eq('is_available', true)
+        .order('sort_order', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching menu items:', error);
-      throw new Error(`Failed to fetch menu items: ${error.message}`);
+      if (error) {
+        console.error('Supabase error fetching menu items:', error);
+        setConnectionError(true);
+        throw new Error(`Database connection failed: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('No menu items found for restaurant:', restaurantId);
+        return [];
+      }
+
+      console.log('Menu items fetched successfully:', data.length);
+      setConnectionError(false);
+      return data as MenuItem[];
+    } catch (error) {
+      console.error('Error in fetchMenuItems:', error);
+      setConnectionError(true);
+      throw error;
     }
-    console.log('Menu items fetched:', data?.length || 0);
-    return data as MenuItem[];
   };
 
   const fetchRestaurant = async (): Promise<Restaurant> => {
+    if (!restaurantId) throw new Error('Restaurant ID is required');
+    
     console.log('Fetching restaurant:', restaurantId);
-    const { data, error } = await supabase
-      .from('restaurants')
-      .select('*')
-      .eq('id', restaurantId)
-      .single();
+    
+    try {
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('id, name, description')
+        .eq('id', restaurantId)
+        .eq('is_active', true)
+        .single();
 
-    if (error) {
-      console.error('Error fetching restaurant:', error);
-      throw new Error(`Failed to fetch restaurant: ${error.message}`);
+      if (error) {
+        console.error('Supabase error fetching restaurant:', error);
+        setConnectionError(true);
+        throw new Error(`Restaurant not found: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Restaurant not found or is inactive');
+      }
+
+      console.log('Restaurant fetched successfully:', data.name);
+      setConnectionError(false);
+      return data as Restaurant;
+    } catch (error) {
+      console.error('Error in fetchRestaurant:', error);
+      setConnectionError(true);
+      throw error;
     }
-    console.log('Restaurant fetched:', data?.name);
-    return data as Restaurant;
   };
 
-  const { data: menuItems = [], isLoading: menuItemsLoading, error: menuItemsError } = useQuery({
+  const { data: menuItems = [], isLoading: menuItemsLoading, error: menuItemsError, refetch: refetchMenuItems } = useQuery({
     queryKey: ['menuItems', restaurantId],
     queryFn: fetchMenuItems,
     enabled: !!restaurantId,
-    retry: 2,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
-  const { data: restaurant, isLoading: restaurantLoading, error: restaurantError } = useQuery({
+  const { data: restaurant, isLoading: restaurantLoading, error: restaurantError, refetch: refetchRestaurant } = useQuery({
     queryKey: ['restaurant', restaurantId],
     queryFn: fetchRestaurant,
     enabled: !!restaurantId,
-    retry: 2,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
-  // Session timer
+  // Session timer with better error handling
   useEffect(() => {
     const timer = setInterval(() => {
       setSessionTimeLeft((prevTime) => {
         if (prevTime <= 1) {
           toast({
             title: "Session Expired",
-            description: "Your session has expired. Redirecting to home page.",
+            description: "Your dining session has expired. Redirecting to home page.",
             variant: "destructive",
           });
           navigate('/');
@@ -118,6 +164,19 @@ const CustomerMenu = () => {
 
     return () => clearInterval(timer);
   }, [navigate, toast]);
+
+  // Connection error recovery
+  useEffect(() => {
+    if (connectionError) {
+      const recoveryTimer = setTimeout(() => {
+        console.log('Attempting to recover connection...');
+        refetchRestaurant();
+        refetchMenuItems();
+      }, 5000);
+
+      return () => clearTimeout(recoveryTimer);
+    }
+  }, [connectionError, refetchRestaurant, refetchMenuItems]);
 
   const addToCart = (item: MenuItem) => {
     console.log('Adding to cart:', item.name);
@@ -162,6 +221,10 @@ const CustomerMenu = () => {
 
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
+      if (!restaurantId || !tableNumber) {
+        throw new Error('Missing restaurant or table information');
+      }
+
       console.log('Placing order...');
       
       const orderData = {
@@ -178,7 +241,10 @@ const CustomerMenu = () => {
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        throw new Error(`Failed to create order: ${orderError.message}`);
+      }
 
       // Add order items
       const orderItems = cart.map(item => ({
@@ -193,7 +259,10 @@ const CustomerMenu = () => {
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Error creating order items:', itemsError);
+        throw new Error(`Failed to create order items: ${itemsError.message}`);
+      }
 
       return order;
     },
@@ -210,7 +279,7 @@ const CustomerMenu = () => {
       console.error('Error placing order:', error);
       toast({
         title: "Order Failed",
-        description: "Failed to place order. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to place order. Please try again.",
         variant: "destructive",
       });
     },
@@ -225,34 +294,56 @@ const CustomerMenu = () => {
     navigate('/');
   };
 
+  // Early return for missing params
+  if (!restaurantId || !tableNumber) {
+    return null;
+  }
+
   // Loading state
   if (restaurantLoading || menuItemsLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF5733] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading menu...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-sm w-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading menu...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait while we fetch your restaurant's menu</p>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (restaurantError || menuItemsError) {
+  // Error state with retry option
+  if (restaurantError || menuItemsError || connectionError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1] flex items-center justify-center">
-        <Card className="w-full max-w-md mx-4">
-          <CardContent className="text-center py-12">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="text-center py-8 px-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-red-500 text-2xl">⚠️</span>
+            </div>
             <h3 className="text-lg font-semibold text-red-600 mb-2">Connection Error</h3>
-            <p className="text-gray-600 mb-4">
-              Unable to load the menu. Please check your connection and try again.
+            <p className="text-gray-600 mb-4 text-sm">
+              {restaurantError?.message || menuItemsError?.message || 
+               "Unable to load the menu. Please check your connection and try again."}
             </p>
-            <Button
-              onClick={() => window.location.reload()}
-              className="bg-[#FF5733] hover:bg-[#E6492E]"
-            >
-              Retry
-            </Button>
+            <div className="space-y-2">
+              <Button
+                onClick={() => {
+                  refetchRestaurant();
+                  refetchMenuItems();
+                }}
+                className="bg-orange-500 hover:bg-orange-600 w-full"
+              >
+                Try Again
+              </Button>
+              <Button
+                onClick={() => navigate('/')}
+                variant="outline"
+                className="w-full"
+              >
+                Go Home
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -260,7 +351,7 @@ const CustomerMenu = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F3] to-[#FFE8E1]">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       <MenuHeader 
         restaurant={restaurant}
         tableNumber={tableNumber}
@@ -270,7 +361,7 @@ const CustomerMenu = () => {
         sessionTimeLeft={sessionTimeLeft}
       />
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid lg:grid-cols-4 gap-6">
           <MenuSearch 
             searchTerm={searchTerm}
@@ -301,21 +392,21 @@ const CustomerMenu = () => {
       />
 
       <AlertDialog open={showBillDialog} onOpenChange={setShowBillDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-sm mx-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Generate Bill & End Session</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-sm">
               This will generate your final bill and end your dining session. 
               Total amount: ₹{cartTotal.toFixed(2)}
               
               Are you sure you want to proceed?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={generateBill}
-              className="bg-[#FF5733] hover:bg-[#E6492E]"
+              className="bg-orange-500 hover:bg-orange-600 w-full sm:w-auto"
             >
               Generate Bill
             </AlertDialogAction>
