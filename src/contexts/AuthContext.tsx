@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -223,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
       if (profileError || !profileData?.email) {
         setLoading(false);
-        return { error: { message: 'Phone number not found' } };
+        return { error: new Error('Phone number not found') };
       }
       
       const { error } = await supabase.auth.signInWithPassword({
