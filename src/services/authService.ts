@@ -97,49 +97,25 @@ export const authService = {
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
-      // Use raw SQL-like approach to avoid TypeScript inference issues
-      const { data: profilesData, error: profilesError } = await supabase.rpc('get_user_email_by_phone', { phone_number: phone });
+      // Simple direct query without complex type inference
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email');
       
-      if (profilesError || !profilesData) {
-        // Fallback to direct table query with explicit typing
-        const response = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('phone', phone)
-          .limit(1);
-        
-        if (response.error || !response.data || response.data.length === 0) {
-          return { error: { message: 'Phone number not found' } };
-        }
-        
-        const userEmail = response.data[0]?.email;
-        
-        if (!userEmail) {
-          return { error: { message: 'Phone number not found' } };
-        }
-        
-        // Sign in with the found email
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email: userEmail,
-          password
-        });
-        
-        if (authError) {
-          return { error: { message: authError.message } };
-        }
-        
-        return { error: null };
+      if (error || !data) {
+        return { error: { message: 'Error looking up phone number' } };
       }
       
-      // If RPC worked, use that result
-      const userEmail = profilesData;
+      // Find the user with matching phone number
+      const userProfile = data.find((profile: any) => profile.email && profile.phone === phone);
       
-      if (!userEmail) {
+      if (!userProfile?.email) {
         return { error: { message: 'Phone number not found' } };
       }
       
+      // Sign in with the found email
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: userEmail,
+        email: userProfile.email,
         password
       });
       
