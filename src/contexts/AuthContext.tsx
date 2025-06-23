@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -222,28 +221,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // Look up email by phone number with explicit typing
-      const profileQuery = await supabase
+      // Look up email by phone number - use simple destructuring
+      const profileResponse = await supabase
         .from('profiles')
         .select('email')
         .eq('phone', phone)
         .single();
         
-      const { data: profileData, error: profileError } = profileQuery;
-        
-      if (profileError || !profileData?.email) {
+      if (profileResponse.error || !profileResponse.data?.email) {
         setLoading(false);
         return { error: { message: 'Phone number not found' } };
       }
       
-      const authResult = await supabase.auth.signInWithPassword({
-        email: profileData.email,
+      // Sign in with the found email
+      const authResponse = await supabase.auth.signInWithPassword({
+        email: profileResponse.data.email,
         password
       });
       
-      if (authResult.error) {
+      if (authResponse.error) {
         setLoading(false);
-        return { error: { message: authResult.error.message } };
+        return { error: { message: authResponse.error.message } };
       }
       
       return { error: null };
