@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AuthResult, Profile } from '@/types/auth';
 
@@ -98,23 +97,47 @@ export const authService = {
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
-      // Use a simpler approach to avoid TypeScript inference issues
-      const profiles = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('phone', phone);
+      // Use raw SQL-like approach to avoid TypeScript inference issues
+      const { data: profilesData, error: profilesError } = await supabase.rpc('get_user_email_by_phone', { phone_number: phone });
       
-      if (profiles.error || !profiles.data || profiles.data.length === 0) {
-        return { error: { message: 'Phone number not found' } };
+      if (profilesError || !profilesData) {
+        // Fallback to direct table query with explicit typing
+        const response = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('phone', phone)
+          .limit(1);
+        
+        if (response.error || !response.data || response.data.length === 0) {
+          return { error: { message: 'Phone number not found' } };
+        }
+        
+        const userEmail = response.data[0]?.email;
+        
+        if (!userEmail) {
+          return { error: { message: 'Phone number not found' } };
+        }
+        
+        // Sign in with the found email
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: userEmail,
+          password
+        });
+        
+        if (authError) {
+          return { error: { message: authError.message } };
+        }
+        
+        return { error: null };
       }
       
-      const userEmail = profiles.data[0]?.email;
+      // If RPC worked, use that result
+      const userEmail = profilesData;
       
       if (!userEmail) {
         return { error: { message: 'Phone number not found' } };
       }
       
-      // Sign in with the found email
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: userEmail,
         password
