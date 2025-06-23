@@ -222,26 +222,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // Look up email by phone number
-      const { data: profileData, error: profileError } = await supabase
+      // Look up email by phone number with explicit typing
+      const profileQuery = await supabase
         .from('profiles')
         .select('email')
         .eq('phone', phone)
         .single();
+        
+      const { data: profileData, error: profileError } = profileQuery;
         
       if (profileError || !profileData?.email) {
         setLoading(false);
         return { error: { message: 'Phone number not found' } };
       }
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const authResult = await supabase.auth.signInWithPassword({
         email: profileData.email,
         password
       });
       
-      if (error) {
+      if (authResult.error) {
         setLoading(false);
-        return { error: { message: error.message } };
+        return { error: { message: authResult.error.message } };
       }
       
       return { error: null };
