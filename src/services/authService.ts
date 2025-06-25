@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AuthResult, Profile } from '@/types/auth';
 
@@ -24,7 +25,7 @@ export const authService = {
     }
   },
 
-  async signUp(email: string, password: string, fullName: string, username: string, phone?: string): Promise<AuthResult> {
+  async signUp(email: string, password: string, fullName: string, username: string, phone: string): Promise<AuthResult> {
     try {
       const currentDomain = window.location.origin;
       const redirectUrl = `${currentDomain}/auth?message=welcome&email=${encodeURIComponent(email)}`;
@@ -97,25 +98,19 @@ export const authService = {
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
-      // Simple direct query without complex type inference
       const { data, error } = await supabase
         .from('profiles')
-        .select('email');
+        .select('email')
+        .eq('phone', phone)
+        .single();
       
-      if (error || !data) {
-        return { error: { message: 'Error looking up phone number' } };
-      }
-      
-      // Find the user with matching phone number
-      const userProfile = data.find((profile: any) => profile.email && profile.phone === phone);
-      
-      if (!userProfile?.email) {
+      if (error || !data?.email) {
         return { error: { message: 'Phone number not found' } };
       }
       
       // Sign in with the found email
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: userProfile.email,
+        email: data.email,
         password
       });
       

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,26 @@ import { toast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, Mail, Phone, User, ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// Country codes for phone number validation
+const countryCodes = [
+  { code: '+1', country: 'US/Canada', flag: '🇺🇸' },
+  { code: '+44', country: 'UK', flag: '🇬🇧' },
+  { code: '+91', country: 'India', flag: '🇮🇳' },
+  { code: '+86', country: 'China', flag: '🇨🇳' },
+  { code: '+81', country: 'Japan', flag: '🇯🇵' },
+  { code: '+49', country: 'Germany', flag: '🇩🇪' },
+  { code: '+33', country: 'France', flag: '🇫🇷' },
+  { code: '+39', country: 'Italy', flag: '🇮🇹' },
+  { code: '+34', country: 'Spain', flag: '🇪🇸' },
+  { code: '+61', country: 'Australia', flag: '🇦🇺' },
+  { code: '+55', country: 'Brazil', flag: '🇧🇷' },
+  { code: '+7', country: 'Russia', flag: '🇷🇺' },
+  { code: '+82', country: 'South Korea', flag: '🇰🇷' },
+  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+];
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,7 +37,8 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
-  const [phone, setPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('+1');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEmailSent, setShowEmailSent] = useState(false);
@@ -58,7 +78,8 @@ const Auth = () => {
       } else if (isLogin) {
         let result;
         if (loginType === 'phone') {
-          result = await signInWithPhone(identifier, password);
+          const fullPhone = countryCode + identifier;
+          result = await signInWithPhone(fullPhone, password);
         } else {
           result = await signIn(identifier, password);
         }
@@ -77,6 +98,7 @@ const Auth = () => {
           navigate('/dashboard');
         }
       } else {
+        // Sign up validation
         if (!fullName.trim()) {
           toast({
             title: "Error",
@@ -93,8 +115,17 @@ const Auth = () => {
           });
           return;
         }
+        if (!phoneNumber.trim()) {
+          toast({
+            title: "Error",
+            description: "Phone number is required",
+            variant: "destructive"
+          });
+          return;
+        }
 
-        const { error } = await signUp(email, password, fullName.trim(), username.trim(), phone || undefined);
+        const fullPhone = countryCode + phoneNumber;
+        const { error } = await signUp(email, password, fullName.trim(), username.trim(), fullPhone);
         if (error) {
           toast({
             title: "Signup Failed",
@@ -107,7 +138,7 @@ const Auth = () => {
           setPassword('');
           setFullName('');
           setUsername('');
-          setPhone('');
+          setPhoneNumber('');
         }
       }
     } catch (error: any) {
@@ -130,41 +161,40 @@ const Auth = () => {
     setPassword('');
     setFullName('');
     setUsername('');
-    setPhone('');
+    setPhoneNumber('');
     setIdentifier('');
   };
 
   if (showEmailSent) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-brand-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Mail className="text-2xl text-white w-8 h-8" />
             </div>
-            <h1 className="text-3xl font-bold text-brand-600">Check Your Email</h1>
+            <h1 className="text-3xl font-bold text-amber-600">Check Your Email</h1>
           </div>
 
-          <Card className="border-brand-100">
+          <Card className="border-amber-100">
             <CardContent className="p-6 text-center">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Welcome to ZapDine!
               </h3>
               <p className="text-gray-600 mb-4">
-                We've sent you a confirmation email with a warm welcome message. 
+                We've sent you a beautiful confirmation email with a warm welcome message. 
                 Please check your inbox and click the confirmation link to activate your account.
               </p>
               <Alert className="mb-4 border-green-200 bg-green-50">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-800">
                   🎉 Your 14-day free trial starts now! After confirming your email, you'll have full access to all features.
-                  Don't forget to upgrade before your trial ends to keep your data and continue using ZapDine.
                 </AlertDescription>
               </Alert>
               <Button
                 onClick={resetForm}
-                className="w-full bg-brand-500 hover:bg-brand-600"
+                className="w-full bg-amber-500 hover:bg-amber-600"
               >
                 Back to Login
               </Button>
@@ -173,7 +203,7 @@ const Auth = () => {
 
           <footer className="mt-8 text-center">
             <p className="text-gray-600">
-              Powered by <a href="https://spslabs.vercel.app" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">SPS Labs</a>
+              Powered by <a href="https://spslabs.vercel.app" target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-600 hover:underline">SPS Labs</a>
             </p>
           </footer>
         </div>
@@ -183,28 +213,28 @@ const Auth = () => {
 
   if (showResetSent) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-brand-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Mail className="text-2xl text-white w-8 h-8" />
             </div>
-            <h1 className="text-3xl font-bold text-brand-600">Reset Email Sent</h1>
+            <h1 className="text-3xl font-bold text-amber-600">Reset Email Sent</h1>
           </div>
 
-          <Card className="border-brand-100">
+          <Card className="border-amber-100">
             <CardContent className="p-6 text-center">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Password Reset Instructions Sent
               </h3>
               <p className="text-gray-600 mb-4">
-                We've sent password reset instructions to your email. 
+                We've sent beautiful password reset instructions to your email. 
                 Please check your inbox and follow the link to reset your password.
               </p>
               <Button
                 onClick={resetForm}
-                className="w-full bg-brand-500 hover:bg-brand-600"
+                className="w-full bg-amber-500 hover:bg-amber-600"
               >
                 Back to Login
               </Button>
@@ -213,7 +243,7 @@ const Auth = () => {
 
           <footer className="mt-8 text-center">
             <p className="text-gray-600">
-              Powered by <a href="https://spslabs.vercel.app" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">SPS Labs</a>
+              Powered by <a href="https://spslabs.vercel.app" target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-600 hover:underline">SPS Labs</a>
             </p>
           </footer>
         </div>
@@ -222,14 +252,14 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-brand-500 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
-          <h1 className="text-3xl font-bold text-brand-600">ZapDine</h1>
+          <h1 className="text-3xl font-bold text-amber-600">ZapDine</h1>
           <p className="text-gray-600 mt-2">Restaurant Management Made Simple</p>
         </div>
 
@@ -253,7 +283,7 @@ const Auth = () => {
           </Alert>
         )}
 
-        <Card className="border-brand-100 shadow-lg">
+        <Card className="border-amber-100 shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-2">
               {isForgotPassword && (
@@ -266,7 +296,7 @@ const Auth = () => {
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               )}
-              <CardTitle className="text-center text-brand-600 flex-1">
+              <CardTitle className="text-center text-amber-600 flex-1">
                 {isForgotPassword 
                   ? 'Reset Your Password'
                   : isLogin 
@@ -288,7 +318,7 @@ const Auth = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
                     required
-                    className="focus:border-brand-500 focus:ring-brand-500"
+                    className="focus:border-amber-500 focus:ring-amber-500"
                   />
                 </div>
               ) : (
@@ -296,42 +326,57 @@ const Auth = () => {
                   {!isLogin && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="fullName">Full Name</Label>
+                        <Label htmlFor="fullName">Full Name *</Label>
                         <Input
                           id="fullName"
                           type="text"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                           placeholder="Enter your full name"
-                          required={!isLogin}
-                          className="focus:border-brand-500 focus:ring-brand-500"
+                          required
+                          className="focus:border-amber-500 focus:ring-amber-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
+                        <Label htmlFor="username">Username *</Label>
                         <Input
                           id="username"
                           type="text"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           placeholder="Choose a username"
-                          required={!isLogin}
-                          className="focus:border-brand-500 focus:ring-brand-500"
+                          required
+                          className="focus:border-amber-500 focus:ring-amber-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number (Optional)</Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="Enter your phone number"
-                          className="focus:border-brand-500 focus:ring-brand-500"
-                        />
+                        <Label htmlFor="phone">Phone Number *</Label>
+                        <div className="flex space-x-2">
+                          <Select value={countryCode} onValueChange={setCountryCode}>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {countryCodes.map((country) => (
+                                <SelectItem key={country.code} value={country.code}>
+                                  {country.flag} {country.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="Enter phone number"
+                            required
+                            className="flex-1 focus:border-amber-500 focus:ring-amber-500"
+                          />
+                        </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email">Email Address *</Label>
                         <Input
                           id="email"
                           type="email"
@@ -339,7 +384,7 @@ const Auth = () => {
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="Enter your email"
                           required
-                          className="focus:border-brand-500 focus:ring-brand-500"
+                          className="focus:border-amber-500 focus:ring-amber-500"
                         />
                       </div>
                     </>
@@ -371,7 +416,7 @@ const Auth = () => {
                             onChange={(e) => setIdentifier(e.target.value)}
                             placeholder="Enter your email"
                             required
-                            className="focus:border-brand-500 focus:ring-brand-500"
+                            className="focus:border-amber-500 focus:ring-amber-500"
                           />
                         </TabsContent>
                         <TabsContent value="username" className="space-y-2 mt-4">
@@ -383,20 +428,34 @@ const Auth = () => {
                             onChange={(e) => setIdentifier(e.target.value)}
                             placeholder="Enter your username"
                             required
-                            className="focus:border-brand-500 focus:ring-brand-500"
+                            className="focus:border-amber-500 focus:ring-amber-500"
                           />
                         </TabsContent>
                         <TabsContent value="phone" className="space-y-2 mt-4">
-                          <Label htmlFor="identifier">Phone Number</Label>
-                          <Input
-                            id="identifier"
-                            type="tel"
-                            value={identifier}
-                            onChange={(e) => setIdentifier(e.target.value)}
-                            placeholder="Enter your phone number"
-                            required
-                            className="focus:border-brand-500 focus:ring-brand-500"
-                          />
+                          <Label htmlFor="phone-input">Phone Number</Label>
+                          <div className="flex space-x-2">
+                            <Select value={countryCode} onValueChange={setCountryCode}>
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {countryCodes.map((country) => (
+                                  <SelectItem key={country.code} value={country.code}>
+                                    {country.flag} {country.code}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              id="phone-input"
+                              type="tel"
+                              value={identifier}
+                              onChange={(e) => setIdentifier(e.target.value)}
+                              placeholder="Enter phone number"
+                              required
+                              className="flex-1 focus:border-amber-500 focus:ring-amber-500"
+                            />
+                          </div>
                         </TabsContent>
                       </Tabs>
                     </>
@@ -411,7 +470,7 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
-                      className="focus:border-brand-500 focus:ring-brand-500"
+                      className="focus:border-amber-500 focus:ring-amber-500"
                       minLength={6}
                     />
                     {!isLogin && (
@@ -424,7 +483,7 @@ const Auth = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-brand-500 hover:bg-brand-600 transition-colors"
+                className="w-full bg-amber-500 hover:bg-amber-600 transition-colors"
               >
                 {loading ? 'Please wait...' : (
                   isForgotPassword ? 'Send Reset Email' :
@@ -438,7 +497,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setIsForgotPassword(true)}
-                  className="text-brand-600 hover:text-brand-700 text-sm font-medium transition-colors"
+                  className="text-amber-600 hover:text-amber-700 text-sm font-medium transition-colors"
                 >
                   Forgot your password?
                 </button>
@@ -455,10 +514,10 @@ const Auth = () => {
                     setPassword('');
                     setFullName('');
                     setUsername('');
-                    setPhone('');
+                    setPhoneNumber('');
                     setIdentifier('');
                   }}
-                  className="text-brand-600 hover:text-brand-700 text-sm font-medium transition-colors"
+                  className="text-amber-600 hover:text-amber-700 text-sm font-medium transition-colors"
                 >
                   {isLogin 
                     ? "Don't have an account? Create one now" 
@@ -473,7 +532,7 @@ const Auth = () => {
         {/* Footer */}
         <footer className="mt-8 text-center">
           <p className="text-gray-600">
-            Powered by <a href="https://spslabs.vercel.app" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">SPS Labs</a>
+            Powered by <a href="https://spslabs.vercel.app" target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-600 hover:underline">SPS Labs</a>
           </p>
         </footer>
       </div>
