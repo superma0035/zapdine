@@ -18,7 +18,12 @@ export const authService = {
       }
 
       console.log('Profile fetched:', data);
-      return data as Profile;
+      // Handle the case where phone might be null in the database
+      const profile: Profile = {
+        ...data,
+        phone: data.phone || '' // Provide default empty string if phone is null
+      };
+      return profile;
     } catch (error) {
       console.error('Error fetching profile:', error);
       return null;
@@ -43,7 +48,11 @@ export const authService = {
         }
       });
       
-      return { error: error ? { message: error.message } : null };
+      if (error) {
+        return { error: { message: error.message } };
+      }
+      
+      return { error: null };
     } catch (error: any) {
       console.error('Signup error:', error);
       return { error: { message: error.message || 'An error occurred during signup' } };
@@ -134,7 +143,11 @@ export const authService = {
         redirectTo: redirectUrl
       });
       
-      return { error: error ? { message: error.message } : null };
+      if (error) {
+        return { error: { message: error.message } };
+      }
+      
+      return { error: null };
     } catch (error: any) {
       console.error('Reset password error:', error);
       return { error: { message: error.message || 'An error occurred during password reset' } };

@@ -7,7 +7,7 @@ export interface Profile {
   full_name: string | null;
   username: string | null;
   has_restaurant: boolean | null;
-  phone: string; // Made required, not optional
+  phone: string | null; // Made optional to match database schema
 }
 
 export interface AuthError {
