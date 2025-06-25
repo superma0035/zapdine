@@ -18,10 +18,14 @@ export const authService = {
       }
 
       console.log('Profile fetched:', data);
-      // Handle the case where phone might be null in the database
+      // Handle the case where phone might not exist in the database yet
       const profile: Profile = {
-        ...data,
-        phone: data.phone || '' // Provide default empty string if phone is null
+        id: data.id,
+        email: data.email,
+        full_name: data.full_name,
+        username: data.username,
+        has_restaurant: data.has_restaurant,
+        phone: (data as any).phone || null // Handle missing phone column
       };
       return profile;
     } catch (error) {
@@ -107,27 +111,8 @@ export const authService = {
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('phone', phone)
-        .single();
-      
-      if (error || !data?.email) {
-        return { error: { message: 'Phone number not found' } };
-      }
-      
-      // Sign in with the found email
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password
-      });
-      
-      if (authError) {
-        return { error: { message: authError.message } };
-      }
-      
-      return { error: null };
+      // For now, return an error since phone column doesn't exist yet
+      return { error: { message: 'Phone login not available yet. Please sign in with email or username.' } };
     } catch (error: any) {
       console.error('Phone signin error:', error);
       return { error: { message: error.message || 'An error occurred during phone signin' } };
