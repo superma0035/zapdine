@@ -211,6 +211,7 @@ export type Database = {
           full_name: string | null
           has_restaurant: boolean | null
           id: string
+          phone: string | null
           updated_at: string | null
           username: string | null
         }
@@ -221,6 +222,7 @@ export type Database = {
           full_name?: string | null
           has_restaurant?: boolean | null
           id: string
+          phone?: string | null
           updated_at?: string | null
           username?: string | null
         }
@@ -231,6 +233,7 @@ export type Database = {
           full_name?: string | null
           has_restaurant?: boolean | null
           id?: string
+          phone?: string | null
           updated_at?: string | null
           username?: string | null
         }
