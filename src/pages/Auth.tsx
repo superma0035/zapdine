@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, Mail, Phone, User, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Mail, Phone, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -35,6 +35,7 @@ const Auth = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [countryCode, setCountryCode] = useState('+1');
@@ -125,8 +126,10 @@ const Auth = () => {
         }
 
         const fullPhone = countryCode + phoneNumber;
+        console.log('Submitting signup with phone:', fullPhone);
         const { error } = await signUp(email, password, fullName.trim(), username.trim(), fullPhone);
         if (error) {
+          console.error('Signup failed:', error);
           toast({
             title: "Signup Failed",
             description: error.message,
@@ -142,6 +145,7 @@ const Auth = () => {
         }
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast({
         title: "Error",
         description: error.message || "An unexpected error occurred",
@@ -159,10 +163,15 @@ const Auth = () => {
     setShowResetSent(false);
     setEmail('');
     setPassword('');
+    setShowPassword(false);
     setFullName('');
     setUsername('');
     setPhoneNumber('');
     setIdentifier('');
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   if (showEmailSent) {
@@ -463,16 +472,31 @@ const Auth = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                      className="focus:border-amber-500 focus:ring-amber-500"
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        required
+                        className="focus:border-amber-500 focus:ring-amber-500 pr-10"
+                        minLength={6}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={togglePasswordVisibility}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
                     {!isLogin && (
                       <p className="text-xs text-gray-500">Password must be at least 6 characters long</p>
                     )}
@@ -512,6 +536,7 @@ const Auth = () => {
                     setIsLogin(!isLogin);
                     setEmail('');
                     setPassword('');
+                    setShowPassword(false);
                     setFullName('');
                     setUsername('');
                     setPhoneNumber('');

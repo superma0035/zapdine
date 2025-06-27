@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AuthResult, Profile } from '@/types/auth';
 
@@ -26,17 +25,26 @@ export const authService = {
   },
 
   validatePhone(phone: string): boolean {
+    console.log('Validating phone:', phone);
     // Basic phone validation - should start with + and have at least 10 digits
     const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    return phoneRegex.test(phone);
+    const isValid = phoneRegex.test(phone);
+    console.log('Phone validation result:', isValid);
+    return isValid;
   },
 
   async signUp(email: string, password: string, fullName: string, username: string, phone: string): Promise<AuthResult> {
     try {
-      // Validate phone number - Fixed typo: changed vlidatePhone to validatePhone
+      console.log('Starting signup process...');
+      console.log('Phone number received:', phone);
+      
+      // Validate phone number
       if (!phone || !this.validatePhone(phone)) {
+        console.log('Phone validation failed');
         return { error: { message: 'Please enter a valid phone number with country code (e.g., +1234567890)' } };
       }
+
+      console.log('Phone validation passed');
 
       // Check if username already exists
       const { data: existingUser, error: checkError } = await supabase
@@ -77,9 +85,11 @@ export const authService = {
       });
       
       if (error) {
+        console.error('Signup error:', error);
         return { error: { message: error.message } };
       }
       
+      console.log('Signup successful');
       return { error: null };
     } catch (error: any) {
       console.error('Signup error:', error);
