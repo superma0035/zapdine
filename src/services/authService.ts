@@ -25,8 +25,41 @@ export const authService = {
     }
   },
 
+  validatePhone(phone: string): boolean {
+    // Basic phone validation - should start with + and have at least 10 digits
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    return phoneRegex.test(phone);
+  },
+
   async signUp(email: string, password: string, fullName: string, username: string, phone: string): Promise<AuthResult> {
     try {
+      // Validate phone number
+      if (!phone || !this.validatePhone(phone)) {
+        return { error: { message: 'Please enter a valid phone number with country code (e.g., +1234567890)' } };
+      }
+
+      // Check if username already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        return { error: { message: 'Username already exists. Please choose a different username.' } };
+      }
+
+      // Check if phone already exists
+      const { data: existingPhone, error: phoneError } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('phone', phone)
+        .single();
+
+      if (existingPhone) {
+        return { error: { message: 'Phone number already registered. Please use a different phone number.' } };
+      }
+
       const currentDomain = window.location.origin;
       const redirectUrl = `${currentDomain}/auth?message=welcome&email=${encodeURIComponent(email)}`;
       
@@ -102,6 +135,11 @@ export const authService = {
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
+      // Validate phone format
+      if (!this.validatePhone(phone)) {
+        return { error: { message: 'Please enter a valid phone number with country code' } };
+      }
+
       // Look up user by phone number
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')

@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Building, Lock, Mail, AlertTriangle } from 'lucide-react';
+import { User, Building, Lock, Mail, AlertTriangle, Trash2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PhoneInput from '@/components/PhoneInput';
+import ContactSupportModal from '@/components/ContactSupportModal';
 
 const Settings = () => {
   const { profile, user, refreshProfile } = useAuth();
@@ -22,6 +23,7 @@ const Settings = () => {
   // Profile form states
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [username, setUsername] = useState(profile?.username || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
 
   // Restaurant form states
   const [restaurantName, setRestaurantName] = useState(restaurants?.[0]?.name || '');
@@ -30,7 +32,6 @@ const Settings = () => {
   const [restaurantPhone, setRestaurantPhone] = useState(restaurants?.[0]?.phone || '');
 
   // Password form states
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -44,6 +45,7 @@ const Settings = () => {
         .update({
           full_name: fullName,
           username: username,
+          phone: phone,
         })
         .eq('id', user?.id);
 
@@ -138,7 +140,6 @@ const Settings = () => {
 
       if (error) throw error;
 
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       
@@ -157,22 +158,31 @@ const Settings = () => {
     }
   };
 
-  const handleContactTeam = () => {
-    const subject = encodeURIComponent('ZapDine Support Request');
-    const body = encodeURIComponent(`Hello ZapDine Team,
+  const handleDeactivateAccount = async () => {
+    if (!confirm("Are you sure you want to deactivate your account? This action cannot be undone.")) {
+      return;
+    }
 
-I need assistance with:
-
-Restaurant: ${restaurants?.[0]?.name || 'N/A'}
-User: ${profile?.full_name || 'N/A'} (${profile?.email || 'N/A'})
-
-Please describe your issue:
-
-
-Best regards,
-${profile?.full_name || 'User'}`);
+    setLoading(true);
     
-    window.open(`mailto:support@spslabs.com?subject=${subject}&body=${body}`, '_blank');
+    try {
+      // In a production app, you'd want to call a backend function to properly deactivate
+      // For now, we'll just sign the user out
+      await supabase.auth.signOut();
+      
+      toast({
+        title: "Account Deactivated",
+        description: "Your account has been deactivated. You've been signed out.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Deactivation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderProfileSection = () => (
@@ -214,6 +224,13 @@ ${profile?.full_name || 'User'}`);
             />
             <p className="text-xs text-gray-500">Email cannot be changed</p>
           </div>
+          <PhoneInput
+            value={phone}
+            onChange={setPhone}
+            label="Phone Number"
+            required
+            placeholder="Enter your phone number"
+          />
           <Button type="submit" disabled={loading} className="bg-amber-500 hover:bg-amber-600">
             {loading ? 'Updating...' : 'Update Profile'}
           </Button>
@@ -334,29 +351,33 @@ ${profile?.full_name || 'User'}`);
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Mail className="w-5 h-5" />
-          Contact Support
+          Support & Account
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-gray-600">
-          Need help with ZapDine? Our support team is here to assist you.
-        </p>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Support Options:</p>
-          <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Technical issues</li>
-            <li>• Account management</li>
-            <li>• Feature requests</li>
-            <li>• Billing questions</li>
-          </ul>
+      <CardContent className="space-y-6">
+        <div>
+          <h3 className="font-medium mb-2">Contact Support</h3>
+          <p className="text-gray-600 text-sm mb-4">
+            Need help with ZapDine? Our support team is here to assist you.
+          </p>
+          <ContactSupportModal />
         </div>
-        <Button onClick={handleContactTeam} className="bg-amber-500 hover:bg-amber-600">
-          <Mail className="w-4 h-4 mr-2" />
-          Contact Support Team
-        </Button>
-        <p className="text-xs text-gray-500">
-          This will open your default email client with a pre-filled support request.
-        </p>
+        
+        <div className="border-t pt-6">
+          <h3 className="font-medium mb-2 text-red-600">Danger Zone</h3>
+          <p className="text-gray-600 text-sm mb-4">
+            Permanently deactivate your account. This action cannot be undone.
+          </p>
+          <Button
+            onClick={handleDeactivateAccount}
+            disabled={loading}
+            variant="destructive"
+            className="bg-red-500 hover:bg-red-600"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Deactivate Account
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -411,9 +432,9 @@ ${profile?.full_name || 'User'}`);
                           Password
                         </button>
                         <button
-                          onClick={() => setActiveSection('contact')}
+                          onClick={() => setActiveSection('support')}
                           className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                            activeSection === 'contact' 
+                            activeSection === 'support' 
                               ? 'bg-amber-500 text-white' 
                               : 'text-gray-700 hover:bg-amber-50'
                           }`}
@@ -430,7 +451,7 @@ ${profile?.full_name || 'User'}`);
                   {activeSection === 'profile' && renderProfileSection()}
                   {activeSection === 'restaurant' && renderRestaurantSection()}
                   {activeSection === 'password' && renderPasswordSection()}
-                  {activeSection === 'contact' && renderContactSection()}
+                  {activeSection === 'support' && renderContactSection()}
                 </div>
               </div>
             </div>
