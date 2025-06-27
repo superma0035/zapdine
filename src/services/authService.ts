@@ -33,7 +33,7 @@ export const authService = {
 
   async signUp(email: string, password: string, fullName: string, username: string, phone: string): Promise<AuthResult> {
     try {
-      // Validate phone number
+      // Validate phone number - Fixed typo here
       if (!phone || !this.validatePhone(phone)) {
         return { error: { message: 'Please enter a valid phone number with country code (e.g., +1234567890)' } };
       }
