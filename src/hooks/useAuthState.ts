@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/auth';
@@ -11,15 +11,16 @@ export const useAuthState = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshProfile = async (): Promise<void> => {
+  const refreshProfile = useCallback(async (): Promise<void> => {
     if (user) {
       const profileData = await authService.fetchProfile(user.id);
       setProfile(profileData);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
+    let subscription: any;
 
     const initializeAuth = async () => {
       try {
@@ -50,7 +51,7 @@ export const useAuthState = () => {
         }
 
         // Set up auth state listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             console.log('Auth state changed:', event, session?.user?.email || 'No session');
             
@@ -60,17 +61,20 @@ export const useAuthState = () => {
             setUser(session?.user ?? null);
             
             if (session?.user && event !== 'TOKEN_REFRESHED') {
-              const profileData = await authService.fetchProfile(session.user.id);
-              setProfile(profileData);
+              // Use setTimeout to avoid blocking the auth state change
+              setTimeout(async () => {
+                if (mounted) {
+                  const profileData = await authService.fetchProfile(session.user.id);
+                  setProfile(profileData);
+                }
+              }, 0);
             } else if (!session) {
               setProfile(null);
             }
           }
         );
 
-        return () => {
-          subscription.unsubscribe();
-        };
+        subscription = authSubscription;
       } catch (error) {
         console.error('Error initializing auth:', error);
         if (mounted) {
@@ -79,11 +83,13 @@ export const useAuthState = () => {
       }
     };
 
-    const cleanup = initializeAuth();
+    initializeAuth();
 
     return () => {
       mounted = false;
-      cleanup?.then(cleanupFn => cleanupFn?.());
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 

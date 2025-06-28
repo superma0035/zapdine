@@ -25,48 +25,19 @@ class AuthService {
     }
   }
 
-  validatePhone(phone: string): boolean {
-    console.log('Validating phone:', phone);
-    // Basic phone validation - should start with + and have at least 10 digits
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    const isValid = phoneRegex.test(phone);
-    console.log('Phone validation result:', isValid);
-    return isValid;
-  }
-
-  async signUp(email: string, password: string, fullName: string, username: string, phone: string): Promise<AuthResult> {
+  async signUp(email: string, password: string, fullName: string, username: string): Promise<AuthResult> {
     try {
       console.log('Starting signup process...');
-      console.log('Phone number received:', phone);
       
-      // Validate phone number
-      if (!phone || !this.validatePhone(phone)) {
-        console.log('Phone validation failed');
-        return { error: { message: 'Please enter a valid phone number with country code (e.g., +1234567890)' } };
-      }
-
-      console.log('Phone validation passed');
-
       // Check if username already exists
       const { data: existingUser, error: checkError } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (existingUser) {
         return { error: { message: 'Username already exists. Please choose a different username.' } };
-      }
-
-      // Check if phone already exists
-      const { data: existingPhone, error: phoneError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('phone', phone)
-        .single();
-
-      if (existingPhone) {
-        return { error: { message: 'Phone number already registered. Please use a different phone number.' } };
       }
 
       const currentDomain = window.location.origin;
@@ -79,8 +50,7 @@ class AuthService {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
-            username: username,
-            phone: phone
+            username: username
           }
         }
       });
@@ -118,7 +88,7 @@ class AuthService {
             .from('profiles')
             .select('email')
             .eq('username', identifier)
-            .single();
+            .maybeSingle();
             
           if (!profileError && profileData?.email) {
             const usernameResult = await supabase.auth.signInWithPassword({
@@ -141,41 +111,6 @@ class AuthService {
     } catch (error: any) {
       console.error('Signin error:', error);
       return { error: { message: error.message || 'An error occurred during signin' } };
-    }
-  }
-
-  async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
-    try {
-      // Validate phone format
-      if (!this.validatePhone(phone)) {
-        return { error: { message: 'Please enter a valid phone number with country code' } };
-      }
-
-      // Look up user by phone number
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('phone', phone)
-        .single();
-        
-      if (profileError || !profileData?.email) {
-        return { error: { message: 'No account found with this phone number' } };
-      }
-      
-      // Sign in with the email associated with the phone number
-      const { error } = await supabase.auth.signInWithPassword({
-        email: profileData.email,
-        password
-      });
-      
-      if (error) {
-        return { error: { message: error.message } };
-      }
-      
-      return { error: null };
-    } catch (error: any) {
-      console.error('Phone signin error:', error);
-      return { error: { message: error.message || 'An error occurred during phone signin' } };
     }
   }
 

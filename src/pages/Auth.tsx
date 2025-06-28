@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,28 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, Mail, Phone, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle, Mail, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-// Country codes for phone number validation
-const countryCodes = [
-  { code: '+1', country: 'US/Canada', flag: '🇺🇸' },
-  { code: '+44', country: 'UK', flag: '🇬🇧' },
-  { code: '+91', country: 'India', flag: '🇮🇳' },
-  { code: '+86', country: 'China', flag: '🇨🇳' },
-  { code: '+81', country: 'Japan', flag: '🇯🇵' },
-  { code: '+49', country: 'Germany', flag: '🇩🇪' },
-  { code: '+33', country: 'France', flag: '🇫🇷' },
-  { code: '+39', country: 'Italy', flag: '🇮🇹' },
-  { code: '+34', country: 'Spain', flag: '🇪🇸' },
-  { code: '+61', country: 'Australia', flag: '🇦🇺' },
-  { code: '+55', country: 'Brazil', flag: '🇧🇷' },
-  { code: '+7', country: 'Russia', flag: '🇷🇺' },
-  { code: '+82', country: 'South Korea', flag: '🇰🇷' },
-  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
-  { code: '+971', country: 'UAE', flag: '🇦🇪' },
-];
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -38,15 +19,13 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
-  const [countryCode, setCountryCode] = useState('+1');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEmailSent, setShowEmailSent] = useState(false);
   const [showResetSent, setShowResetSent] = useState(false);
-  const [loginType, setLoginType] = useState<'email' | 'phone' | 'username'>('email');
+  const [loginType, setLoginType] = useState<'email' | 'username'>('email');
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, signInWithPhone, resetPassword, user } = useAuth();
+  const { signIn, signUp, resetPassword, user } = useAuth();
   const navigate = useNavigate();
 
   const welcomeMessage = searchParams.get('message') === 'welcome';
@@ -77,13 +56,7 @@ const Auth = () => {
           setEmail('');
         }
       } else if (isLogin) {
-        let result;
-        if (loginType === 'phone') {
-          const fullPhone = countryCode + identifier;
-          result = await signInWithPhone(fullPhone, password);
-        } else {
-          result = await signIn(identifier, password);
-        }
+        const result = await signIn(identifier, password);
         
         if (result.error) {
           toast({
@@ -116,18 +89,9 @@ const Auth = () => {
           });
           return;
         }
-        if (!phoneNumber.trim()) {
-          toast({
-            title: "Error",
-            description: "Phone number is required",
-            variant: "destructive"
-          });
-          return;
-        }
 
-        const fullPhone = countryCode + phoneNumber;
-        console.log('Submitting signup with phone:', fullPhone);
-        const { error } = await signUp(email, password, fullName.trim(), username.trim(), fullPhone);
+        console.log('Submitting signup');
+        const { error } = await signUp(email, password, fullName.trim(), username.trim());
         if (error) {
           console.error('Signup failed:', error);
           toast({
@@ -141,7 +105,6 @@ const Auth = () => {
           setPassword('');
           setFullName('');
           setUsername('');
-          setPhoneNumber('');
         }
       }
     } catch (error: any) {
@@ -166,7 +129,6 @@ const Auth = () => {
     setShowPassword(false);
     setFullName('');
     setUsername('');
-    setPhoneNumber('');
     setIdentifier('');
   };
 
@@ -359,32 +321,6 @@ const Auth = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number *</Label>
-                        <div className="flex space-x-2">
-                          <Select value={countryCode} onValueChange={setCountryCode}>
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {countryCodes.map((country) => (
-                                <SelectItem key={country.code} value={country.code}>
-                                  {country.flag} {country.code}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="Enter phone number"
-                            required
-                            className="flex-1 focus:border-amber-500 focus:ring-amber-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
                         <Label htmlFor="email">Email Address *</Label>
                         <Input
                           id="email"
@@ -402,7 +338,7 @@ const Auth = () => {
                   {isLogin && (
                     <>
                       <Tabs value={loginType} onValueChange={(value) => setLoginType(value as typeof loginType)} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-2">
                           <TabsTrigger value="email" className="flex items-center gap-1">
                             <Mail className="w-4 h-4" />
                             Email
@@ -410,10 +346,6 @@ const Auth = () => {
                           <TabsTrigger value="username" className="flex items-center gap-1">
                             <User className="w-4 h-4" />
                             Username
-                          </TabsTrigger>
-                          <TabsTrigger value="phone" className="flex items-center gap-1">
-                            <Phone className="w-4 h-4" />
-                            Phone
                           </TabsTrigger>
                         </TabsList>
                         <TabsContent value="email" className="space-y-2 mt-4">
@@ -439,32 +371,6 @@ const Auth = () => {
                             required
                             className="focus:border-amber-500 focus:ring-amber-500"
                           />
-                        </TabsContent>
-                        <TabsContent value="phone" className="space-y-2 mt-4">
-                          <Label htmlFor="phone-input">Phone Number</Label>
-                          <div className="flex space-x-2">
-                            <Select value={countryCode} onValueChange={setCountryCode}>
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {countryCodes.map((country) => (
-                                  <SelectItem key={country.code} value={country.code}>
-                                    {country.flag} {country.code}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              id="phone-input"
-                              type="tel"
-                              value={identifier}
-                              onChange={(e) => setIdentifier(e.target.value)}
-                              placeholder="Enter phone number"
-                              required
-                              className="flex-1 focus:border-amber-500 focus:ring-amber-500"
-                            />
-                          </div>
                         </TabsContent>
                       </Tabs>
                     </>
@@ -539,7 +445,6 @@ const Auth = () => {
                     setShowPassword(false);
                     setFullName('');
                     setUsername('');
-                    setPhoneNumber('');
                     setIdentifier('');
                   }}
                   className="text-amber-600 hover:text-amber-700 text-sm font-medium transition-colors"

@@ -7,7 +7,7 @@ export interface Profile {
   full_name: string | null;
   username: string | null;
   has_restaurant: boolean | null;
-  phone: string | null; // Made optional to match database schema
+  phone: string | null; // Keep for database compatibility but won't be used
 }
 
 export interface AuthError {
@@ -22,9 +22,8 @@ export interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  signUp: (email: string, password: string, fullName: string, username: string, phone: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string, fullName: string, username: string) => Promise<AuthResult>;
   signIn: (identifier: string, password: string) => Promise<AuthResult>;
-  signInWithPhone: (phone: string, password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthResult>;
   loading: boolean;

@@ -30,7 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     signUp: authService.signUp,
     signIn: authService.signIn,
-    signInWithPhone: authService.signInWithPhone,
     signOut,
     resetPassword: authService.resetPassword,
     loading,
