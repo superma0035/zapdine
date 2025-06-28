@@ -1,7 +1,8 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AuthResult, Profile } from '@/types/auth';
 
-export const authService = {
+class AuthService {
   async fetchProfile(userId: string): Promise<Profile | null> {
     try {
       console.log('Fetching profile for user:', userId);
@@ -22,7 +23,7 @@ export const authService = {
       console.error('Error fetching profile:', error);
       return null;
     }
-  },
+  }
 
   validatePhone(phone: string): boolean {
     console.log('Validating phone:', phone);
@@ -31,7 +32,7 @@ export const authService = {
     const isValid = phoneRegex.test(phone);
     console.log('Phone validation result:', isValid);
     return isValid;
-  },
+  }
 
   async signUp(email: string, password: string, fullName: string, username: string, phone: string): Promise<AuthResult> {
     try {
@@ -95,7 +96,7 @@ export const authService = {
       console.error('Signup error:', error);
       return { error: { message: error.message || 'An error occurred during signup' } };
     }
-  },
+  }
 
   async signIn(identifier: string, password: string): Promise<AuthResult> {
     try {
@@ -141,7 +142,7 @@ export const authService = {
       console.error('Signin error:', error);
       return { error: { message: error.message || 'An error occurred during signin' } };
     }
-  },
+  }
 
   async signInWithPhone(phone: string, password: string): Promise<AuthResult> {
     try {
@@ -176,7 +177,7 @@ export const authService = {
       console.error('Phone signin error:', error);
       return { error: { message: error.message || 'An error occurred during phone signin' } };
     }
-  },
+  }
 
   async resetPassword(email: string): Promise<AuthResult> {
     try {
@@ -196,10 +197,13 @@ export const authService = {
       console.error('Reset password error:', error);
       return { error: { message: error.message || 'An error occurred during password reset' } };
     }
-  },
+  }
 
   async signOut(): Promise<void> {
     await supabase.auth.signOut();
     window.location.href = '/';
   }
-};
+}
+
+// Export a single instance to maintain consistent context
+export const authService = new AuthService();
